@@ -23,7 +23,7 @@ let digit = ['0'-'9']
 
 rule token = parse
   | '=' { EQ }
-  | "<>" { EQ }
+  | "<>" { NEQ }
   | 'p' { P }
   | "cnf" { CNF }
   | digit+ as s {

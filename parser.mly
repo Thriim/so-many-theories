@@ -38,6 +38,7 @@ clause :
     
 
 equation :
-| INTEGER EQ INTEGER { Eq ($1, $3) } 
-| INTEGER NEQ INTEGER { Neq ($1, $3) }
+| INTEGER EQ INTEGER {
+  Eq (min $1 $3, max $1 $3) } 
+| INTEGER NEQ INTEGER { Neq (min $1 $3, max $1 $3) }
 ;
