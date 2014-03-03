@@ -1,4 +1,3 @@
-
 type equation =
 | Neq of int * int
 | Eq of int * int
@@ -15,7 +14,9 @@ type sat_var =
 
 type operation = Op of int * int
     
+module ICMap : Map.S with type key = operation
+
 type bcnf = sat_var list list
-type system = (operation * int) list * bcnf
+type system = int ICMap.t * bcnf
 
 val string_of_system : system -> string

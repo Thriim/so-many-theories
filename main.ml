@@ -28,8 +28,6 @@ let report_loc (b,e) =
   let lc = e.pos_cnum - b.pos_bol + 1 in
   eprintf "File \"%s\", line %d, characters %d-%d:\n" file l fc lc
 
-
-    
 let _ =
   let d = open_in file in
   let lb = Lexing.from_channel d in
