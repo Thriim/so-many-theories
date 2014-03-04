@@ -42,9 +42,20 @@ let satisfies m f =
       (fun acc c -> if not (is_model m c) then raise Wrong_model else acc) true f
   with Wrong_model -> false
 
+let contains_decision_literal m =
+  List.exists (function Decision _ -> true | _ -> false) m
+
 let solver (env, bcnf) =
   let m = [] in
-  (*
-     Core algorithm
-  *)
-  if satisfies m bcnf then Sat else Unsat
+  let rec step m f =
+    if satisfies m bcnf then Sat
+    else if contains_decision_literal m then
+      (* Backtrack *)
+      step m f
+    else
+      (* Try unit and call step *)
+      (* else try decision and call step *)
+      (* else *)
+      Unsat
+  in
+  step m bcnf
