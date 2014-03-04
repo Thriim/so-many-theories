@@ -29,30 +29,26 @@ type literal = Decision of sat_var | Unit of sat_var
 type model = literal list
 
 (** Tests if the variables in [m] are a correct model for [c] *)
-let is_model m c = Clause.for_all (fun v -> true) c
-(* exception Wrong_model *)
+let is_model m c = Clause.for_all
+    (fun v -> List.mem (Decision v) m || List.mem (Unit v) m) c
 
-let satisfies m f = Formula.for_all (is_model m) f  (* => is that okay too ? *)
-  (* If it returns false once, we don't test for the rest, just returns *)
-
-  (* try *)
-  (*   List.fold_left *)
-  (*     (fun acc c -> if not (is_model m c) then raise Wrong_model else acc) true f *)
-  (* with Wrong_model -> false *)
+(** Checks that the model satisfies each clause in the formula *)
+let satisfies m f = Formula.for_all (is_model m) f
 
 let contains_decision_literal m =
   List.exists (function Decision _ -> true | _ -> false) m
 
-(* Maybe we should do CDCL instead of DPLL ? *)
 let solver (env, bcnf) =
   let m = [] in
   let time = ref 0 in
+  let vsids_cst = 3 in
+  let find_two_literals bcnf = () in
   let rec step m f vars =
 
     (* VSIDS *)
     incr time;
     let vars = if !time mod 10 = 0 then
-        List.map (fun (v, x) -> v, x / 3 (* ? *)) vars
+        List.map (fun (v, x) -> v, x / vsids_cst (* ? *)) vars
       else vars in
 
     if satisfies m bcnf then Sat
