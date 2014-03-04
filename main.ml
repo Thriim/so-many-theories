@@ -5,6 +5,7 @@ open Parser
 open Lexing
 open Lexer
 open Sat
+open Smt
 
 
 open Format
@@ -31,7 +32,7 @@ let report_loc (b,e) =
 let _ =
   let d = open_in file in
   let lb = Lexing.from_channel d in
-  try 
+  try
     let ast = Parser.file Lexer.token lb in
     let system = Sat.translate ast in
     printf "%s@." (Ast.string_of_system system)

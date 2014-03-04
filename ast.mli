@@ -15,8 +15,6 @@ type sat_var =
 type operation = Op of int * int
 
 module ICMap : Map.S with type key = operation
-
-
 module Clause : Set.S with type elt = sat_var
 module Formula : Set.S with type elt = Clause.t
 
