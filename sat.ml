@@ -29,12 +29,10 @@ type literal = Decision of sat_var | Unit of sat_var
 type model = literal list
 
 (** Tests if the variables in [m] are a correct model for [c] *)
-let is_model m c = List.for_all (fun v ->
-
-  true) c
+let is_model m c = Clause.for_all (fun v -> true) c
 (* exception Wrong_model *)
 
-let satisfies m f = List.for_all (is_model m) f  (* => is that okay too ? *)
+let satisfies m f = Formula.for_all (is_model m) f  (* => is that okay too ? *)
   (* If it returns false once, we don't test for the rest, just returns *)
 
   (* try *)
@@ -67,4 +65,4 @@ let solver (env, bcnf) =
       (* else *)
       Unsat
   in
-  step m bcnf
+  step m bcnf []
