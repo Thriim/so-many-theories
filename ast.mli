@@ -13,10 +13,14 @@ type sat_var =
 | Not of int
 
 type operation = Op of int * int
-    
+
 module ICMap : Map.S with type key = operation
 
-type bcnf = sat_var list list
-type system = int ICMap.t * bcnf
+
+module Clause : Set.S with type elt = sat_var
+module Formula : Set.S with type elt = Clause.t
+
+type formula = Formula.t
+type system = int ICMap.t * formula
 
 val string_of_system : system -> string

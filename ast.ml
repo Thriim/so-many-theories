@@ -11,22 +11,35 @@ type operation = Op of int * int
 module ICMap = Map.Make (struct
   type t = operation
   let compare = compare end)
-type bcnf = sat_var list list
-type system = int ICMap.t * bcnf
+
+module Literal = struct
+  let compare = Pervasives.compare
+  type t = sat_var
+end
+
+module Clause = Set.Make (Literal)
+module Formula = Set.Make (Clause)
+
+type formula = Formula.t
+type system = int ICMap.t * formula
 
 
 
+open Format
 
-let string_of_sat_var v =
-  match v with
+let string_of_sat_var = function
   | Not i -> "!" ^ string_of_int i
   | Var i -> string_of_int i
 
-let string_of_system (map, bcnf) =
-  Format.sprintf "bindings {\n%s}\n%s"
+let string_of_system (map, fmla) =
+  sprintf "bindings {\n%s}\n%s"
     (ICMap.fold (fun (Op (i1, i2)) v acc ->
       acc ^ (Format.sprintf "%d %d -> %d\n" i1 i2 v)
      ) map "")
-    (String.concat "\n" @@
-       List.map (fun disj ->
-	 String.concat " " (List.map string_of_sat_var disj)) bcnf)
+    (Formula.fold (fun clause sfml ->
+      sprintf "%s\n%s"
+      (Clause.fold (fun lit scl ->
+        let slit = string_of_sat_var lit in
+        sprintf "%s %s" scl slit
+       ) clause ("")) sfml
+     ) fmla "")
