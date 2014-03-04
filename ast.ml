@@ -16,13 +16,13 @@ type system = int ICMap.t * bcnf
 
 
 
-  
+
 let string_of_sat_var v =
   match v with
   | Not i -> "!" ^ string_of_int i
   | Var i -> string_of_int i
 
-let string_of_system (map, bcnf) = 
+let string_of_system (map, bcnf) =
   Format.sprintf "bindings {\n%s}\n%s"
     (ICMap.fold (fun (Op (i1, i2)) v acc ->
       acc ^ (Format.sprintf "%d %d -> %d\n" i1 i2 v)

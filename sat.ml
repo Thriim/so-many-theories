@@ -45,13 +45,22 @@ let satisfies m f =
 let contains_decision_literal m =
   List.exists (function Decision _ -> true | _ -> false) m
 
+(* Maybe we should do CDCL instead of DPLL ? *)
 let solver (env, bcnf) =
   let m = [] in
-  let rec step m f =
+  let time = ref 0 in
+  let rec step m f vars =
+
+    (* VSIDS *)
+    incr time;
+    let vars = if !time mod 10 = 0 then
+        List.map (fun (v, x) -> v, x / 3 (* ? *)) vars
+      else vars in
+
     if satisfies m bcnf then Sat
     else if contains_decision_literal m then
       (* Backtrack *)
-      step m f
+      step m f vars
     else
       (* Try unit and call step *)
       (* else try decision and call step *)
