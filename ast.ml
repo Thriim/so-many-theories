@@ -43,3 +43,9 @@ let string_of_system (map, fmla) =
         sprintf "%s %s" scl slit
        ) clause ("")) sfml
      ) fmla "")
+
+let string_of_clause cl =
+  Clause.fold (fun lit scl ->
+        let slit = string_of_sat_var lit in
+        sprintf "%s %s" scl slit
+       ) cl ("")

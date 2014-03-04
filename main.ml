@@ -35,7 +35,11 @@ let _ =
   try
     let ast = Parser.file Lexer.token lb in
     let system = Sat.translate ast in
-    printf "%s@." (Ast.string_of_system system)
+    printf "%s@." (Ast.string_of_system system);
+    try let m = Sat.solver system in
+      printf "Sat, with the model: %s@." @@ string_of_model m
+    with Unsat ->  printf "Unsat@."
+
   with
   | Lexical_error s ->
     report_loc (lexeme_start_p lb, lexeme_end_p lb);
