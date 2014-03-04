@@ -1,0 +1,4 @@
+PRJ so-many-theories
+S ./
+B ./
+B _build/
