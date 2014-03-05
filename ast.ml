@@ -23,7 +23,7 @@ module Formula = Set.Make (Clause)
 type formula = Formula.t
 type system = int ICMap.t * formula
 
-
+let not_var = function Not v -> Var v | Var v -> Not v
 
 open Format
 

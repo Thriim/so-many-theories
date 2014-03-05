@@ -1,6 +1,8 @@
 
 open Ast
 
+open Graph
+
 let translate ast =
   let counter = ref 0 in
   let nvar, nclauses, formula = ast in
@@ -28,7 +30,6 @@ type model = literal list
 
 let var = function Not v | Var v -> Var v
 
-let not_var = function Not v -> Var v | Var v -> Not v
 
 (** Tests if the variables in [m] are a correct model for [c] *)
 let is_model m c = Clause.exists
@@ -79,21 +80,27 @@ let string_of_model m =
 
 (** Takes a variable in the pool and add it as Decision literal, or raises
   No_literal if no literal free *)
-let decision m f pool =
+let decision m f pool gr =
   let l = try Clause.choose pool
-    with Not_found -> raise No_literal in Decision l :: m, Clause.remove l pool
+    with Not_found -> raise No_literal in Decision l :: m, Clause.remove l pool, gr
 
-(** Naive unit rule, which looks in EVERY clause to find a literal *)
-let unit m f pool =
-  let l, cl = Formula.fold (fun cl acc ->
-      let l', cl' = apply m cl in
-      if Clause.cardinal l' = 1 then
-        let l' = Clause.choose l' in
-        if not (List.exists (function Decision v | Unit v -> v = l') m) then l', cl'
-        else acc
-      else acc)
-      f (Var (-1), Clause.empty) in
-  if l = Var (-1) then raise No_literal else Unit l :: m, Clause.remove l pool
+exception Found of sat_var * Clause.t
+
+(** Naive unit rule, which find the first clause that have only one unresolved variable *)
+let unit m f pool gr =
+  let l, cl =
+    try Formula.fold (fun cl acc ->
+        let l', cl' = apply m cl in
+        if Clause.cardinal l' = 1 then
+          let l' = Clause.choose l' in
+          if not (List.exists (function Decision v | Unit v -> v = l') m)
+          then raise (Found (l', cl'))
+          else acc
+        else acc)
+        f (Var (-1), Clause.empty)
+    with Found (l, cl) -> l, cl in
+  if l = Var (-1) then raise No_literal
+  else Unit l :: m, Clause.remove l pool, add_implication cl l gr
 
 
 let solver (env, bcnf) =
@@ -102,27 +109,28 @@ let solver (env, bcnf) =
   (* let vsids_cst = 3 in *)
   (* let find_two_literals bcnf = () in *)
 
-  let rec step m f vars pool =
+  let rec step m f vars pool gr =
 
     (* (\* VSIDS *\) *)
     (* incr time; *)
     (* let vars = if !time mod 10 = 0 then *)
     (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
     (*   else vars in *)
+    (* Format.printf "Actual graph : %s@." @@ string_of_igraph gr; *)
     try
       if satisfies m f then m
       else if is_unsat m f then raise Unsat
       else
-        let m, pool =
-          try unit m f pool
+        let m, pool, gr =
+          try unit m f pool gr
           with No_literal ->
-            try decision m f pool
+            try decision m f pool gr
             with No_literal -> raise Unsat in
-        step m f vars pool
+        step m f vars pool gr
     with Unsat ->
       let m1, m2 = split_at_decision m in
-      step m2 f vars (Clause.union m1 pool)
+      step m2 f vars (Clause.union m1 pool) gr
 
   in
   let pool = ICMap.fold (fun _ i pool -> Clause.add (Var i) pool) env Clause.empty in
-  step m bcnf [] pool
+  step m bcnf [] pool (empty pool)
