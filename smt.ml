@@ -2,4 +2,4 @@
 
 
 open Sat
-open Union_find
+open Congruence_closure
