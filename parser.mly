@@ -10,7 +10,7 @@
 
 %token <int> INTEGER
 %token CNF P
-%token EQ NEQ EOF EOL
+%token EQ NEQ EOF EOL EOC END
 
 
 %start file sat
@@ -50,7 +50,6 @@ sat:
 bclauses:
 | bclause EOL bclauses { Formula.add $1 $3 }
 | bclause EOL { Formula.singleton $1 }
-| bclause { Formula.singleton $1 }
 ;
 
 bclause:

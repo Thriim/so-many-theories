@@ -11,3 +11,5 @@ val add_implication : Clause.t -> sat_var -> igraph -> igraph
 val string_of_igraph : igraph -> string
 
 val empty : Clause.t -> igraph
+
+val cut : igraph -> Clause.t

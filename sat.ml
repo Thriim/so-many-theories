@@ -47,6 +47,11 @@ let can_unsat m c = Clause.for_all
 (** Returns true if there is a literal with the actual model that can be unsat *)
 let is_unsat m f = Formula.exists (can_unsat m) f
 
+let string_of_model m =
+  List.fold_right (fun v acc -> match v with
+      | Decision v -> string_of_sat_var v ^ "@ :: " ^ acc
+      | Unit v -> string_of_sat_var v ^ " :: " ^ acc) m "[]"
+
 let contains_decision_literal m =
   List.exists (function Decision _ -> true | _ -> false) m
 
@@ -68,15 +73,25 @@ let split_at_decision m =
 let apply m c =
   let value c = match c with Decision c | Unit c -> c in
   let m = List.map value m in
-  Clause.partition (fun v -> List.mem v m) c
+  let cl, l = Clause.partition (fun v -> List.mem (not_var v) m) c in
+  l, cl
+
+let backjump_split m cl =
+  let rec step prev m =
+    Format.printf "Actual model: %s@." @@ string_of_model m;
+    if not (contains_decision_literal m) then prev, m
+    else
+      let m1, m2 = split_at_decision m in
+      let l', cl' = apply m2 cl in
+      if Clause.cardinal l' = 1 then
+        let l = not_var (Clause.choose l') in
+        Clause.union prev m1, Unit l :: (List.tl m2)
+      else step (Clause.union prev m1) m2
+  in
+  step Clause.empty m
 
 exception Unsat
 exception No_literal
-
-let string_of_model m =
-  List.fold_right (fun v acc -> match v with
-      | Decision v -> string_of_sat_var v ^ "@ :: " ^ acc
-      | Unit v -> string_of_sat_var v ^ " :: " ^ acc) m "[]"
 
 (** Takes a variable in the pool and add it as Decision literal, or raises
   No_literal if no literal free *)
@@ -90,7 +105,11 @@ exception Found of sat_var * Clause.t
 let unit m f pool gr =
   let l, cl =
     try Formula.fold (fun cl acc ->
+        (* Format.printf "Trying m: %s\nwith cl: %s@." *)
+        (*   (string_of_model m) (string_of_clause cl); *)
         let l', cl' = apply m cl in
+        (* Format.printf "Found false: %s, true: %s@." (string_of_clause l') *)
+        (*   (string_of_clause cl'); *)
         if Clause.cardinal l' = 1 then
           let l' = Clause.choose l' in
           if not (List.exists (function Decision v | Unit v -> v = l') m)
@@ -100,7 +119,7 @@ let unit m f pool gr =
         f (Var (-1), Clause.empty)
     with Found (l, cl) -> l, cl in
   if l = Var (-1) then raise No_literal
-  else Unit l :: m, Clause.remove l pool, add_implication cl l gr
+  else Unit l :: m, Clause.remove l pool, (* add_implication cl l  *)gr
 
 
 let solver (env, bcnf) =
@@ -117,19 +136,30 @@ let solver (env, bcnf) =
     (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
     (*   else vars in *)
     (* Format.printf "Actual graph : %s@." @@ string_of_igraph gr; *)
-    try
-      if satisfies m f then m
-      else if is_unsat m f then raise Unsat
+    (* try *)
+    (* Format.printf "m: %s@." @@ string_of_model m; *)
+    if satisfies m f then m
+    else if is_unsat m f then
+      if not (contains_decision_literal m) then raise Unsat
       else
-        let m, pool, gr =
-          try unit m f pool gr
-          with No_literal ->
-            try decision m f pool gr
-            with No_literal -> raise Unsat in
-        step m f vars pool gr
-    with Unsat ->
-      let m1, m2 = split_at_decision m in
-      step m2 f vars (Clause.union m1 pool) gr
+        (* let clause = cut gr in *)
+        (* Format.printf "Graph: %s@." @@ string_of_igraph gr; *)
+        (* let m1, m2 = backjump_split m clause in *)
+        (* let pool = (Clause.union m1 pool) in *)
+        (* let gr = empty pool in *)
+        (* print_endline "Backjump success"; *)
+        let m1, m2 = split_at_decision m in
+        step m2 f vars (Clause.union m1 pool) gr
+    else
+      let m, pool, gr =
+        try unit m f pool gr
+        with No_literal ->
+          try decision m f pool gr
+          with No_literal -> m, pool, gr in
+      step m f vars pool gr
+      (* with Unsat -> *)
+    (*   if contains_decision_literal m then *)
+    (*   else raise Unsat *)
 
   in
   let pool = ICMap.fold (fun _ i pool -> Clause.add (Var i) pool) env Clause.empty in

@@ -36,6 +36,28 @@ rule token = parse
   | _
       { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
 
+(* and cnf = parse *)
+(*   | '=' { EQ } *)
+(*   | "<>" { NEQ } *)
+(*   | 'p' { P } *)
+(*   | "cnf" { CNF } *)
+(*   | "0" { EOC } *)
+(*   | '%' { token lexbuf } *)
+(*   | (['-']?digit+) as s { *)
+(*     let i = try int_of_string s *)
+(*       with *)
+(*       | Failure s -> *)
+(* 	raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) *)
+(*     in *)
+(*     INTEGER i } *)
+(*   | '\n' { newline lexbuf; EOL } *)
+(*   | eof { print_endline "eof"; EOF } *)
+(*   | space+ { token lexbuf } *)
+(*   | "c" ((space+ [^'\n']*\)+ '\n' | '\n') { newline lexbuf; token lexbuf } *)
+(*   | _ *)
+(*       { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) } *)
+
+
 {
 
 }
