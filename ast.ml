@@ -23,6 +23,14 @@ module Formula = Set.Make (Clause)
 type formula = Formula.t
 type system = int ICMap.t * formula
 
+let dummy_map formula =
+  let vars =
+    Formula.fold (fun cl l ->
+      Clause.fold (fun v l ->
+          let i = match v with Var i | Not i -> i in
+          if List.mem i l then l else i :: l) cl l) formula [] in
+  List.fold_left (fun icm i -> ICMap.add (Op (i, i)) i icm) ICMap.empty vars
+
 let not_var = function Not v -> Var v | Var v -> Not v
 
 open Format

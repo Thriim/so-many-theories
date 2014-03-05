@@ -23,6 +23,8 @@ type system = int ICMap.t * formula
 
 val not_var : sat_var -> sat_var
 
+val dummy_map : formula -> int ICMap.t
+
 val string_of_sat_var : sat_var -> string
 val string_of_clause : Clause.t -> string
 val string_of_system : system -> string

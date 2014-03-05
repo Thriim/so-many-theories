@@ -15,13 +15,14 @@
 
 let alpha = ['a'-'z' 'A'-'Z']
 let digit = ['0'-'9']
+let space = [' ' '\t' '\r']
 
 rule token = parse
   | '=' { EQ }
   | "<>" { NEQ }
   | 'p' { P }
   | "cnf" { CNF }
-  | digit+ as s {
+  | (['-']?digit+) as s {
     let i = try int_of_string s
       with
       | Failure s ->
@@ -29,9 +30,9 @@ rule token = parse
     in
     INTEGER i }
   | '\n' { newline lexbuf; EOL }
-  | eof { EOF }
-  | [' ' '\t' '\r']+ { token lexbuf }
-  | "c " [^'\n']* '\n' { newline lexbuf; token lexbuf }
+  | eof { print_endline "eof"; EOF }
+  | space+ { token lexbuf }
+  | "c" ((space+ [^'\n']*)+ '\n' | '\n') { newline lexbuf; token lexbuf }
   | _
       { raise (Lexical_error ("illegal character: " ^ lexeme lexbuf)) }
 

@@ -28,7 +28,7 @@ let add_implication cl l gr =
     | Src nl ->
       let nl = List.filter (fun g -> g = o) nl in
       Src (List.map (add_edge o i) nl)
-    | Node (v, nl) when v = i ->
+    | Node (v, nl) when v = not_var i ->
       let nl = if List.mem o nl then nl else o :: nl in
       Node (v, nl)
     | Node (v, nl) -> Node (v, List.map (add_edge o i) nl)

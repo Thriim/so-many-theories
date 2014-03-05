@@ -16,8 +16,8 @@ let usage = "prog.byte <file>.cnfuf"
 let file =
   let file = ref None in
   let set_file s =
-    if not (Filename.check_suffix s ".cnfuf") then
-      raise (Arg.Bad "no .cnfuf extension");
+    if not (Filename.check_suffix s ".cnfuf" || Filename.check_suffix s ".cnf") then
+      raise (Arg.Bad "no .cnfuf or .cnf extension");
     file := Some s
   in
   Arg.parse spec set_file usage;
@@ -33,8 +33,13 @@ let _ =
   let d = open_in file in
   let lb = Lexing.from_channel d in
   try
-    let ast = Parser.file Lexer.token lb in
-    let system = Sat.translate ast in
+    let system = if Filename.check_suffix file "cnfuf" then
+        let ast = Parser.file Lexer.token lb in
+        Sat.translate ast
+      else
+        let ast = Parser.sat Lexer.token lb in
+        dummy_map ast, ast
+    in
     printf "%s@." (Ast.string_of_system system);
     try let m = Sat.solver system in
       printf "Sat, with the model: %s@." @@ string_of_model m
