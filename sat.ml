@@ -94,7 +94,7 @@ exception No_literal
 module type TheorySolver =
   sig
     type t
-    val empty : 'a -> t
+    val empty : int -> t
     val add_literal : operation IntMap.t -> sat_var -> t -> t option
     (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
   end
@@ -119,17 +119,22 @@ module Make =
       previous : T.t list
     }
 
+    type result = Continue of solver_model | Backtrack of solver_model
+
     (** Takes a variable in the pool and add it as Decision literal, or raises
         No_literal if no literal free *)
     let decision m =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
-      let theory = m.theory in
-      { m with
+      let prev = m.theory in
+      let theory, f = match T.add_literal m.env l m.theory with
+        | Some h -> h, (fun m -> Continue m)
+        | None -> m.theory, (fun m -> Backtrack m) in
+      f { m with
         model = Decision l :: m.model;
         pool = Clause.remove l m.pool;
-        previous = theory :: m.previous;
-        theory = T.add_literal m.env l m.theory
+        previous = prev :: m.previous;
+        theory
       }
 
     exception Found of sat_var * Clause.t
@@ -148,16 +153,20 @@ module Make =
             m.formula (Var (-1), Clause.empty)
         with Found (l, cl) -> l, cl in
       if l = Var (-1) then raise No_literal
-      else { m with
-             model = Unit l :: m.model;
-             pool = Clause.remove l m.pool;
-             theory = T.add_literal m.env l m.theory
-           }
+      else
+        let theory, f = match T.add_literal m.env l m.theory with
+        | Some h -> h, (fun m -> Continue m)
+        | None -> m.theory, (fun m -> Backtrack m) in
+        f { m with
+          model = Unit l :: m.model;
+          pool = Clause.remove l m.pool;
+          theory
+        }
 
     let backtrack m =
       let m1, m2 = split_at_decision m.model in
       let theory, previous = List.hd m.previous, List.tl m.previous in
-      { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
+      Continue { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
 
     let solver (env, bcnf) =
       (* let time = ref 0 in *)
@@ -172,10 +181,12 @@ module Make =
         (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
         (*   else vars in *)
 
-        if satisfies m.model m.formula then
-          if T.is_coherent m.env m.model m.theory then m.model
-          else step @@ backtrack m
-        else if is_unsat m.model m.formula then
+        let do_backtrack, m = match m with
+          | Continue m -> false, m
+          | Backtrack m -> true, m in
+
+        if satisfies m.model m.formula then m.model
+        else if is_unsat m.model m.formula || do_backtrack then
           if not (contains_decision_literal m.model) then raise Unsat
           else
             (* let clause = cut gr in *)
@@ -190,16 +201,16 @@ module Make =
             try unit m
             with No_literal ->
               try decision m
-              with No_literal -> m in
+              with No_literal -> Backtrack m in
           step m
 
       in
       let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
-      step { model = [];
+      step (Continue { model = [];
              env;
              formula = bcnf;
              pool;
-             theory = T.empty ();
-             previous = [] }
+             theory = T.empty @@ Clause.cardinal pool;
+             previous = [] })
 
   end

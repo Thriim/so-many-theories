@@ -9,7 +9,7 @@ val translate : Ast.cnf -> Ast.system
 module type TheorySolver =
   sig
     type t
-    val empty : 'a -> t
+    val empty : int -> t
     val add_literal : operation IntMap.t -> sat_var -> t -> t option
     (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
   end
@@ -17,7 +17,7 @@ module type TheorySolver =
 module Boolean :
 sig
     type t
-    val empty : 'a -> t
+    val empty : int -> t
     val add_literal : operation IntMap.t -> sat_var -> t -> t option
     (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
 end
