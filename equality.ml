@@ -54,6 +54,25 @@ let rec full env model h ineqs =
           full env tail h (RelSet.add (a, b) ineqs)
       end
 
+
+
+module Solver = struct
+  type t = Union_find.t * RelSet.t
+  let empty n = Union_find.create n, RelSet.empty 
+
+  let add_literal env var (h, ineqs) =
+    let i, f = begin match var with
+    | Var i -> i, (fun op -> increment h op ineqs, ineqs)
+    | Not i -> i, (fun (Op (a, b)) -> Some h, RelSet.add (a, b) ineqs)
+    end in
+    let op = begin try IntMap.find i env with
+      Not_found -> raise (Error (UnboundPropVar i))
+    end in f op
+        
+    
+
+end
+        
       
 
   (* let rec step h eqs = *)

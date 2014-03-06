@@ -10,16 +10,16 @@ module type TheorySolver =
   sig
     type t
     val empty : 'a -> t
-    val add_literal : operation IntMap.t -> sat_var -> t -> t
-    val is_coherent : operation IntMap.t -> model -> t -> bool
+    val add_literal : operation IntMap.t -> sat_var -> t -> t option
+    (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
   end
 
 module Boolean :
 sig
     type t
     val empty : 'a -> t
-    val add_literal : operation IntMap.t -> sat_var -> t -> t
-    val is_coherent : operation IntMap.t -> model -> t -> bool
+    val add_literal : operation IntMap.t -> sat_var -> t -> t option
+    (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
 end
 
 module Make : functor (T : TheorySolver) ->

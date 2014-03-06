@@ -95,15 +95,15 @@ module type TheorySolver =
   sig
     type t
     val empty : 'a -> t
-    val add_literal : operation IntMap.t -> sat_var -> t -> t
-    val is_coherent : operation IntMap.t -> model -> t -> bool
+    val add_literal : operation IntMap.t -> sat_var -> t -> t option
+    (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
   end
 
 module Boolean = struct
     type t = unit
     let empty _ = ()
-    let is_coherent sys m t = true
-    let add_literal _ _ t = t
+    (* let is_coherent sys m t = true *)
+    let add_literal _ _ t = Some t
   end
 
 module Make =
