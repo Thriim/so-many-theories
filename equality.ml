@@ -25,11 +25,16 @@ open Union_find
 type error = UnboundPropVar of int
 exception Error of error
     
-let increment h (Op (a, b)) ineqs =
+let increment_union h (Op (a, b)) ineqs =
   let h' = union h a b in
   if find h a = find h b && RelSet.mem (a, b) ineqs then None
-  else Some h'
+  else Some h', ineqs
 
+let increment_ineqs h (Op (a, b)) ineqs =
+  let ra = find h a in
+  let rb = find h b in
+  if ra = rb then None, ineqs
+  else Some h, RelSet.add (ra, rb) ineqs
   
 let rec full env model h ineqs =
   match model with
@@ -56,14 +61,15 @@ let rec full env model h ineqs =
 
 
 
+
 module Solver = struct
   type t = Union_find.t * RelSet.t
   let empty n = Union_find.create n, RelSet.empty 
 
   let add_literal env var (h, ineqs) =
     let i, f = begin match var with
-    | Var i -> i, (fun op -> increment h op ineqs, ineqs)
-    | Not i -> i, (fun (Op (a, b)) -> Some h, RelSet.add (a, b) ineqs)
+    | Var i -> i, (fun op -> increment_union h op ineqs)
+    | Not i -> i, (fun op) -> increment_ineqs h op ineqs)
     end in
     let op = begin try IntMap.find i env with
       Not_found -> raise (Error (UnboundPropVar i))
@@ -73,18 +79,6 @@ module Solver = struct
 
 end
         
-      
-
-  (* let rec step h eqs = *)
-  (*   let a, b as e = RelSet.choose eqs in *)
-  (*   let h' = union h a b in *)
-  (*   if find h a = find h b && RelSet.mem e ineqs then false *)
-  (*   else step h' (RelSet.remove e eqs) *)
-  (* in try step h eqs with Not_found -> true *)
-
-  
-
-
 
     
 
