@@ -34,7 +34,10 @@ module PArray = struct
     | Arr a -> a.(i)
     | Diff (j, v, t') ->
       reroot t';
-      if i == j then v else get t' i
+        begin match !t' with
+        | Arr a -> a.(i)
+        | Diff _ -> assert false
+        end
 
   let set t i v =
     reroot t;
@@ -45,7 +48,7 @@ module PArray = struct
       let res = ref n in
       t := Diff (i, old, res);
       res
-    | Diff _ -> ref (Diff (i, v, t))
+    | Diff _ -> assert false
 
 end
 

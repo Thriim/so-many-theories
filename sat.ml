@@ -13,13 +13,14 @@ let translate ast =
     List.fold_left (fun (env, accf) clause ->
       let env, disj = List.fold_left (fun (env, acccl) equation ->
         let f, i1, i2 =
-	        match equation with
-	        | Neq (i1, i2) -> (fun x -> Not x), i1, i2
-	        | Eq (i1, i2) -> (fun x -> Var x), i1, i2
+	  match equation with
+	  | Neq (i1, i2) -> (fun x -> Not x), i1, i2
+	  | Eq (i1, i2) -> (fun x -> Var x), i1, i2
         in
         let var, env =
           try
-            IntMap.iter (fun k (Op (j1, j2)) -> if j1 = i1 && j2 = i2 then raise (End k)) env;
+            IntMap.iter (fun k (Op (j1, j2)) ->
+              if j1 = i1 && j2 = i2 then raise (End k)) env;
 	    incr counter; !counter,
 	    IntMap.add (!counter) (Op (i1, i2)) env
           with End k -> k, env

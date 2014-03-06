@@ -43,9 +43,9 @@ let _ =
         dummy_map ast, ast
     in
     printf "%s@." (Ast.string_of_system system);
-    try let m = SimpleSat.solver system in
-      printf "Sat, with the model: %s@." @@ string_of_model m
-    with Unsat ->  printf "Unsat@."
+    try let m = EqualitySat.solver system in
+      printf "SAT \n  with the model: %s@." @@ string_of_model m
+    with Unsat ->  printf "UNSAT@."
 
   with
   | Lexical_error s ->
