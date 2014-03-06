@@ -88,6 +88,7 @@ let backjump_split m cl =
   step Clause.empty m
 
 exception Unsat
+exception Theory_unsat
 exception No_literal
 
 
@@ -124,12 +125,15 @@ module Make =
     let decision m =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
-      let theory = m.theory in
+      let prev = m.theory in
+      let theory = match T.add_literal m.env l m.theory with
+        | Some h -> h
+        | None -> raise Theory_unsat in
       { m with
         model = Decision l :: m.model;
         pool = Clause.remove l m.pool;
-        previous = theory :: m.previous;
-        theory = T.add_literal m.env l m.theory
+        previous = prev :: m.previous;
+        theory
       }
 
     exception Found of sat_var * Clause.t
@@ -148,11 +152,15 @@ module Make =
             m.formula (Var (-1), Clause.empty)
         with Found (l, cl) -> l, cl in
       if l = Var (-1) then raise No_literal
-      else { m with
-             model = Unit l :: m.model;
-             pool = Clause.remove l m.pool;
-             theory = T.add_literal m.env l m.theory
-           }
+      else
+        let theory = match T.add_literal m.env l m.theory with
+        | Some h -> h
+        | None -> raise Theory_unsat in
+        { m with
+          model = Unit l :: m.model;
+          pool = Clause.remove l m.pool;
+          theory
+        }
 
     let backtrack m =
       let m1, m2 = split_at_decision m.model in
@@ -172,34 +180,34 @@ module Make =
         (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
         (*   else vars in *)
 
-        if satisfies m.model m.formula then
-          if T.is_coherent m.env m.model m.theory then m.model
-          else step @@ backtrack m
-        else if is_unsat m.model m.formula then
-          if not (contains_decision_literal m.model) then raise Unsat
-          else
-            (* let clause = cut gr in *)
-            (* Format.printf "Graph: %s@." @@ string_of_igraph gr; *)
-            (* let m1, m2 = backjump_split m clause in *)
-            (* let pool = (Clause.union m1 pool) in *)
-            (* let gr = empty pool in *)
-            (* print_endline "Backjump success"; *)
-            step @@ backtrack m
+        if satisfies m.model m.formula then m
+        (* else if is_unsat m.model m.formula then *)
         else
           let m =
             try unit m
             with No_literal ->
               try decision m
-              with No_literal -> m in
+              with _ ->
+                if not (contains_decision_literal m.model) then raise Unsat
+                else
+                  (* let clause = cut gr in *)
+                  (* Format.printf "Graph: %s@." @@ string_of_igraph gr; *)
+                  (* let m1, m2 = backjump_split m clause in *)
+                  (* let pool = (Clause.union m1 pool) in *)
+                  (* let gr = empty pool in *)
+                  (* print_endline "Backjump success"; *)
+                  step @@ backtrack m in
           step m
 
       in
       let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
-      step { model = [];
-             env;
-             formula = bcnf;
-             pool;
-             theory = T.empty ();
-             previous = [] }
+      let res = step
+          { model = [];
+            env;
+            formula = bcnf;
+            pool;
+            theory = T.empty ();
+            previous = [] } in
+      res.model
 
   end
