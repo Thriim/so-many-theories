@@ -93,74 +93,113 @@ let backjump_split m cl =
 exception Unsat
 exception No_literal
 
-(** Takes a variable in the pool and add it as Decision literal, or raises
-  No_literal if no literal free *)
-let decision m f pool gr =
-  let l = try Clause.choose pool
-    with Not_found -> raise No_literal in Decision l :: m, Clause.remove l pool, gr
-
-exception Found of sat_var * Clause.t
-
-(** Naive unit rule, which find the first clause that have only one unresolved variable *)
-let unit m f pool gr =
-  let l, cl =
-    try Formula.fold (fun cl acc ->
-        (* Format.printf "Trying m: %s\nwith cl: %s@." *)
-        (*   (string_of_model m) (string_of_clause cl); *)
-        let l', cl' = apply m cl in
-        (* Format.printf "Found false: %s, true: %s@." (string_of_clause l') *)
-        (*   (string_of_clause cl'); *)
-        if Clause.cardinal l' = 1 then
-          let l' = Clause.choose l' in
-          if not (List.exists (function Decision v | Unit v -> v = l') m)
-          then raise (Found (l', cl'))
-          else acc
-        else acc)
-        f (Var (-1), Clause.empty)
-    with Found (l, cl) -> l, cl in
-  if l = Var (-1) then raise No_literal
-  else Unit l :: m, Clause.remove l pool, (* add_implication cl l  *)gr
 
 
-let solver (env, bcnf) =
-  let m = [] in
-  (* let time = ref 0 in *)
-  (* let vsids_cst = 3 in *)
-  (* let find_two_literals bcnf = () in *)
+module type TheorySolver =
+  sig
+    type t
+    val empty : 'a -> t
+    val add_literal : int ICMap.t -> sat_var -> t -> t
+    val is_coherent : int ICMap.t -> model -> t -> bool
+  end
 
-  let rec step m f vars pool gr =
+module Boolean = struct
+    type t = unit
+    let empty _ = ()
+    let is_coherent sys m t = true
+    let add_literal _ _ t = t
+  end
 
-    (* (\* VSIDS *\) *)
-    (* incr time; *)
-    (* let vars = if !time mod 10 = 0 then *)
-    (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
-    (*   else vars in *)
-    (* Format.printf "Actual graph : %s@." @@ string_of_igraph gr; *)
-    (* try *)
-    (* Format.printf "m: %s@." @@ string_of_model m; *)
-    if satisfies m f then m
-    else if is_unsat m f then
-      if not (contains_decision_literal m) then raise Unsat
-      else
-        (* let clause = cut gr in *)
-        (* Format.printf "Graph: %s@." @@ string_of_igraph gr; *)
-        (* let m1, m2 = backjump_split m clause in *)
-        (* let pool = (Clause.union m1 pool) in *)
-        (* let gr = empty pool in *)
-        (* print_endline "Backjump success"; *)
-        let m1, m2 = split_at_decision m in
-        step m2 f vars (Clause.union m1 pool) gr
-    else
-      let m, pool, gr =
-        try unit m f pool gr
-        with No_literal ->
-          try decision m f pool gr
-          with No_literal -> m, pool, gr in
-      step m f vars pool gr
-      (* with Unsat -> *)
-    (*   if contains_decision_literal m then *)
-    (*   else raise Unsat *)
+module Make =
+  functor(T : TheorySolver) ->
+  struct
 
-  in
-  let pool = ICMap.fold (fun _ i pool -> Clause.add (Var i) pool) env Clause.empty in
-  step m bcnf [] pool (empty pool)
+    type solver_model = {
+      env : int ICMap.t;
+      formula : formula;
+      model : model;
+      pool : Clause.t;
+      theory : T.t;
+      previous : T.t list
+    }
+
+    (** Takes a variable in the pool and add it as Decision literal, or raises
+        No_literal if no literal free *)
+    let decision m =
+      let l = try Clause.choose m.pool
+        with Not_found -> raise No_literal in
+      let theory = m.theory in
+      { m with
+        model = Decision l :: m.model;
+        pool = Clause.remove l m.pool;
+        previous = theory :: m.previous;
+        theory = T.add_literal m.env l m.theory
+      }
+
+    exception Found of sat_var * Clause.t
+
+    (** Naive unit rule, which find the first clause that have only one unresolved variable *)
+    let unit m =
+      let l, cl =
+        try Formula.fold (fun cl acc ->
+            let l', cl' = apply m.model cl in
+            if Clause.cardinal l' = 1 then
+              let l' = Clause.choose l' in
+              if not (List.exists (function Decision v | Unit v -> v = l') m.model)
+              then raise (Found (l', cl'))
+              else acc
+            else acc)
+            m.formula (Var (-1), Clause.empty)
+        with Found (l, cl) -> l, cl in
+      if l = Var (-1) then raise No_literal
+      else { m with
+             model = Unit l :: m.model;
+             pool = Clause.remove l m.pool;
+             theory = T.add_literal m.env l m.theory
+           }
+
+
+    let solver (env, bcnf) =
+      (* let time = ref 0 in *)
+      (* let vsids_cst = 3 in *)
+      (* let find_two_literals bcnf = () in *)
+
+      let rec step m =
+
+        (* (\* VSIDS *\) *)
+        (* incr time; *)
+        (* let vars = if !time mod 10 = 0 then *)
+        (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
+        (*   else vars in *)
+
+        if satisfies m.model m.formula then m.model
+        else if is_unsat m.model m.formula then
+          if not (contains_decision_literal m.model) then raise Unsat
+          else
+            (* let clause = cut gr in *)
+            (* Format.printf "Graph: %s@." @@ string_of_igraph gr; *)
+            (* let m1, m2 = backjump_split m clause in *)
+            (* let pool = (Clause.union m1 pool) in *)
+            (* let gr = empty pool in *)
+            (* print_endline "Backjump success"; *)
+            let m1, m2 = split_at_decision m.model in
+            let theory, previous = List.hd m.previous, List.tl m.previous in
+            step { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
+        else
+          let m =
+            try unit m
+            with No_literal ->
+              try decision m
+              with No_literal -> m in
+          step m
+
+      in
+      let pool = ICMap.fold (fun _ i pool -> Clause.add (Var i) pool) env Clause.empty in
+      step { model = [];
+             env;
+             formula = bcnf;
+             pool;
+             theory = T.empty ();
+             previous = [] }
+
+  end
