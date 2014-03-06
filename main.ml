@@ -13,6 +13,7 @@ let spec = []
 let usage = "prog.byte <file>.cnfuf"
 
 module SimpleSat = Sat.Make(Sat.Boolean)
+module EqualitySat = Sat.Make(Equality.Solver)
 
 let file =
   let file = ref None in

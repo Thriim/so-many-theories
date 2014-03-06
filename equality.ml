@@ -27,14 +27,14 @@ exception Error of error
     
 let increment_eqs h (Op (a, b)) ineqs =
   let h' = union h a b in
-  if find h a = find h b && RelSet.mem (a, b) ineqs then None, ineqs
-  else Some h', ineqs
+  if find h a = find h b && RelSet.mem (a, b) ineqs then None
+  else Some (h', ineqs)
 
 let increment_ineqs h (Op (a, b)) ineqs =
   let ra = find h a in
   let rb = find h b in
-  if ra = rb then None, ineqs
-  else Some h, RelSet.add (ra, rb) ineqs
+  if ra = rb then None
+  else Some (h, RelSet.add (ra, rb) ineqs)
   
 (* let rec full env model h ineqs = *)
 (*   match model with *)
