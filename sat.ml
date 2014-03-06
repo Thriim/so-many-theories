@@ -154,6 +154,10 @@ module Make =
              theory = T.add_literal m.env l m.theory
            }
 
+    let backtrack m =
+      let m1, m2 = split_at_decision m.model in
+      let theory, previous = List.hd m.previous, List.tl m.previous in
+      { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
 
     let solver (env, bcnf) =
       (* let time = ref 0 in *)
@@ -168,7 +172,9 @@ module Make =
         (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
         (*   else vars in *)
 
-        if satisfies m.model m.formula then m.model
+        if satisfies m.model m.formula then
+          if T.is_coherent m.env m.model m.theory then m.model
+          else step @@ backtrack m
         else if is_unsat m.model m.formula then
           if not (contains_decision_literal m.model) then raise Unsat
           else
@@ -178,9 +184,7 @@ module Make =
             (* let pool = (Clause.union m1 pool) in *)
             (* let gr = empty pool in *)
             (* print_endline "Backjump success"; *)
-            let m1, m2 = split_at_decision m.model in
-            let theory, previous = List.hd m.previous, List.tl m.previous in
-            step { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
+            step @@ backtrack m
         else
           let m =
             try unit m
