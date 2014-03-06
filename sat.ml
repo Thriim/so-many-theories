@@ -3,6 +3,9 @@ open Ast
 
 open Graph
 
+
+exception End of int
+
 let translate ast =
   let counter = ref 0 in
   let nvar, nclauses, formula = ast in
@@ -14,19 +17,18 @@ let translate ast =
 	        | Neq (i1, i2) -> (fun x -> Not x), i1, i2
 	        | Eq (i1, i2) -> (fun x -> Var x), i1, i2
         in
-        let var, env = try ICMap.find (Op (i1, i2)) env, env with
-	          Not_found ->
-	            incr counter; !counter,
-	            ICMap.add (Op (i1, i2)) (!counter) env
+        let var, env =
+          try
+            IntMap.iter (fun k (Op (j1, j2)) -> if j1 = i1 && j2 = i2 then raise (End k)) env;
+	    incr counter; !counter,
+	    IntMap.add (!counter) (Op (i1, i2)) env
+          with End k -> k, env
         in
         env, Clause.add (f var) acccl
       ) (env, Clause.empty) clause  in
       env, Formula.add disj accf
-    ) (ICMap.empty, Formula.empty) formula in
+    ) (IntMap.empty, Formula.empty) formula in
   env, formula
-
-type literal = Decision of sat_var | Unit of sat_var
-type model = literal list
 
 let var = function Not v | Var v -> Var v
 
@@ -46,11 +48,6 @@ let can_unsat m c = Clause.for_all
 
 (** Returns true if there is a literal with the actual model that can be unsat *)
 let is_unsat m f = Formula.exists (can_unsat m) f
-
-let string_of_model m =
-  List.fold_right (fun v acc -> match v with
-      | Decision v -> string_of_sat_var v ^ "@ :: " ^ acc
-      | Unit v -> string_of_sat_var v ^ " :: " ^ acc) m "[]"
 
 let contains_decision_literal m =
   List.exists (function Decision _ -> true | _ -> false) m
@@ -162,5 +159,5 @@ let solver (env, bcnf) =
     (*   else raise Unsat *)
 
   in
-  let pool = ICMap.fold (fun _ i pool -> Clause.add (Var i) pool) env Clause.empty in
+  let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
   step m bcnf [] pool (empty pool)

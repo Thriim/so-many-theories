@@ -14,17 +14,22 @@ type sat_var =
 
 type operation = Op of int * int
 
-module ICMap : Map.S with type key = operation
+module IntMap : Map.S with type key = int
 module Clause : Set.S with type elt = sat_var
 module Formula : Set.S with type elt = Clause.t
 
 type formula = Formula.t
-type system = int ICMap.t * formula
+type system = operation IntMap.t * formula
+    
+type literal = Decision of sat_var | Unit of sat_var
+type model = literal list
 
 val not_var : sat_var -> sat_var
 
-val dummy_map : formula -> int ICMap.t
+val dummy_map : formula -> operation IntMap.t
 
 val string_of_sat_var : sat_var -> string
 val string_of_clause : Clause.t -> string
 val string_of_system : system -> string
+val string_of_model : model -> string
+

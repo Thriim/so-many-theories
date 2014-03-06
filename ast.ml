@@ -8,8 +8,9 @@ type sat_var =
 | Var of int
 | Not of int
 type operation = Op of int * int
-module ICMap = Map.Make (struct
-  type t = operation
+
+module IntMap = Map.Make (struct
+  type t = int
   let compare = compare end)
 
 module Literal = struct
@@ -21,7 +22,10 @@ module Clause = Set.Make (Literal)
 module Formula = Set.Make (Clause)
 
 type formula = Formula.t
-type system = int ICMap.t * formula
+type system = operation IntMap.t * formula
+
+type literal = Decision of sat_var | Unit of sat_var
+type model = literal list
 
 let dummy_map formula =
   let vars =
@@ -29,7 +33,7 @@ let dummy_map formula =
       Clause.fold (fun v l ->
           let i = match v with Var i | Not i -> i in
           if List.mem i l then l else i :: l) cl l) formula [] in
-  List.fold_left (fun icm i -> ICMap.add (Op (i, i)) i icm) ICMap.empty vars
+  List.fold_left (fun icm i -> IntMap.add i (Op (i, i)) icm) IntMap.empty vars
 
 let not_var = function Not v -> Var v | Var v -> Not v
 
@@ -41,7 +45,7 @@ let string_of_sat_var = function
 
 let string_of_system (map, fmla) =
   sprintf "bindings {\n%s}\n%s"
-    (ICMap.fold (fun (Op (i1, i2)) v acc ->
+    (IntMap.fold (fun  v (Op (i1, i2)) acc ->
       acc ^ (Format.sprintf "%d %d -> %d\n" i1 i2 v)
      ) map "")
     (Formula.fold (fun clause sfml ->
@@ -57,3 +61,9 @@ let string_of_clause cl =
         let slit = string_of_sat_var lit in
         sprintf "%s %s" scl slit
        ) cl ("")
+
+
+let string_of_model m =
+  List.fold_right (fun v acc -> match v with
+      | Decision v -> string_of_sat_var v ^ "@ :: " ^ acc
+      | Unit v -> string_of_sat_var v ^ " :: " ^ acc) m "[]"

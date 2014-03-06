@@ -5,8 +5,7 @@ open Parser
 open Lexing
 open Lexer
 open Sat
-open Smt
-
+open Equality
 
 open Format
 
