@@ -17,9 +17,9 @@ module type TheorySolver =
 
 module Boolean :
 sig
-    type t
-    type repr
-    type input
+    type t = unit
+    type repr = Equality_ast.operation
+    type input = Equality_ast.equation
     val empty : int -> t
     val translate : input Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option

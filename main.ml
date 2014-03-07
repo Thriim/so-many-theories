@@ -43,7 +43,9 @@ let _ =
         dummy_map ast, ast
     in
     printf "%s@." (Equality_ast.string_of_op_system system);
-    try let m = EqualitySat.solver system in
+    try let m = if Filename.check_suffix file "cnfuf" then
+        EqualitySat.solver system
+      else SimpleSat.solver system in
       printf "SAT \n  with the model: %s@." @@ string_of_model m
     with Unsat ->  printf "UNSAT@."
 
