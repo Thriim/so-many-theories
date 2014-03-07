@@ -186,7 +186,7 @@ module Make =
           | Continue m -> false, m
           | Backtrack m -> true, m in
 
-        if satisfies m.model m.formula then m.model
+        if satisfies m.model m.formula && not do_backtrack then m.model
         else if is_unsat m.model m.formula || do_backtrack then
           if not (contains_decision_literal m.model) then raise Unsat
           else
