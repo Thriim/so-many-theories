@@ -78,9 +78,9 @@ module type TheorySolver =
   sig
     type t
     type repr
-    type input
+    type predicate
     val empty : int -> t
-    val translate : input Ast.cnf -> repr Ast.system
+    val translate : predicate Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
   end
 
@@ -89,7 +89,7 @@ module Boolean = struct
 
   type t = unit
   type repr = operation
-  type input = equation
+  type predicate = equation
   let empty _ = ()
   let translate = translate
   let add_literal _ _ t = Some t

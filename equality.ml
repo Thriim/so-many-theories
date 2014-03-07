@@ -36,7 +36,7 @@ exception End of int
 module Solver = struct
   type t = Union_find.t * RelSet.t
   type repr = operation
-  type input = equation
+  type predicate = equation
 
   let translate = translate
 
