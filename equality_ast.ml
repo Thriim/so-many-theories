@@ -36,4 +36,4 @@ let translate ast =
       ) (env, Clause.empty) clause  in
       env, Formula.add disj accf
     ) (IntMap.empty, Formula.empty) formula in
-  env, formula
+  (nvar, nclauses), env, formula

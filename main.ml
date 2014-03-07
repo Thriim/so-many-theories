@@ -31,24 +31,28 @@ let report_loc (b,e) =
   let lc = e.pos_cnum - b.pos_bol + 1 in
   eprintf "File \"%s\", line %d, characters %d-%d:\n" file l fc lc
 
+let solve_boolean lb =
+  let ast = Parser.sat Lexer.token lb in
+  let system = Boolean.translate ast in
+  try
+    let m = SimpleSat.solver system in
+    Format.printf "SAT\n  with the model: %s@." @@ string_of_model m
+  with Unsat -> printf "UNSAT@."
+
+let solve_equality lb =
+  let ast = Parser.file Lexer.token lb in
+  let system = Equality_ast.translate ast in
+  printf "%s@." (Equality_ast.string_of_op_system system);
+  try let m = EqualitySat.solver system in
+    printf "SAT \n  with the model: %s@." @@ string_of_model m
+  with Unsat ->  printf "UNSAT@."
+
 let _ =
   let d = open_in file in
   let lb = Lexing.from_channel d in
   try
-    let system = if Filename.check_suffix file "cnfuf" then
-        let ast = Parser.file Lexer.token lb in
-        Equality_ast.translate ast
-      else
-        let ast = Parser.sat Lexer.token lb in
-        dummy_map ast, ast
-    in
-    printf "%s@." (Equality_ast.string_of_op_system system);
-    try let m = if Filename.check_suffix file "cnfuf" then
-        EqualitySat.solver system
-      else SimpleSat.solver system in
-      printf "SAT \n  with the model: %s@." @@ string_of_model m
-    with Unsat ->  printf "UNSAT@."
-
+    if Filename.check_suffix file "cnfuf" then solve_equality lb
+    else solve_boolean lb
   with
   | Lexical_error s ->
     report_loc (lexeme_start_p lb, lexeme_end_p lb);

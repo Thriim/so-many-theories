@@ -23,7 +23,7 @@ module Clause = Set.Make (Literal)
 module Formula = Set.Make (Clause)
 
 type formula = Formula.t
-type 'a system = 'a IntMap.t * formula
+type 'a system = (int * int) * 'a IntMap.t * formula
 
 type literal = Decision of sat_var | Unit of sat_var
 type model = literal list
@@ -36,7 +36,7 @@ let string_of_sat_var = function
   | Not i -> "!" ^ string_of_int i
   | Var i -> string_of_int i
 
-let string_of_system f (map, fmla) =
+let string_of_system f ((_,_), map, fmla) =
   sprintf "bindings {\n%s}\n%s"
     (IntMap.fold (fun  v op acc ->
       acc ^ (Format.sprintf "%s -> %d\n" (f op) v)

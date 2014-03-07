@@ -40,7 +40,7 @@ module Solver = struct
 
   let translate = translate
 
-  let empty n = Union_find.create (n + 1), RelSet.empty
+  let empty ((nv, _), _, _) = Union_find.create (nv + 1), RelSet.empty
 
   let add_literal env var (h, ineqs) =
     let i, f = begin match var with

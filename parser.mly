@@ -16,7 +16,7 @@
 
 %start file sat
 %type <Equality_ast.equation Ast.cnf> file
-%type <Ast.formula> sat
+%type <int Ast.cnf> sat
 
 %%
 
@@ -36,25 +36,24 @@ clause :
 | equation { [$1] }
 ;
 
-
-
 equation :
 | INTEGER EQ INTEGER {
   Eq (min $1 $3, max $1 $3) }
 | INTEGER NEQ INTEGER { Neq (min $1 $3, max $1 $3) }
 ;
 
+/* Boolean parser */
+
 sat:
-|  P CNF INTEGER INTEGER EOL bclauses EOF { $6 }
+|  P CNF INTEGER INTEGER EOL bclauses EOF { ($3, $4, $6) }
 ;
 
 bclauses:
-| bclause EOL bclauses { Formula.add $1 $3 }
-| bclause EOL { Formula.singleton $1 }
+| bclause EOL bclauses { $1 :: $3 }
+| bclause EOL { [$1] }
 ;
 
 bclause:
-| INTEGER bclause { let v = if $1 < 0 then Not (abs $1) else Var $1 in
-                    Clause.add v $2 }
-| INTEGER { let v = if $1 < 0 then Not (abs $1) else Var $1 in Clause.singleton v }
+| INTEGER bclause { $1 :: $2 }
+| INTEGER { [$1] }
 ;

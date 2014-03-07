@@ -3,8 +3,6 @@ open Ast
 exception Unsat
 exception No_literal
 
-val dummy_map : formula -> Equality_ast.operation IntMap.t
-
 (** The signature that allows the solver to reason about a theory *)
 module type TheorySolver =
   sig
@@ -20,7 +18,7 @@ module type TheorySolver =
 
     (** Creates an empty theory solver structure from the number of unique
         variables in this theory *)
-    val empty : int -> t
+    val empty : repr Ast.system -> t
 
     (** Translates the cnf into a usable set of clauses and its mapping
         environment *)
@@ -34,9 +32,9 @@ module type TheorySolver =
 module Boolean :
 sig
     type t = unit
-    type repr = Equality_ast.operation
-    type predicate = Equality_ast.equation
-    val empty : int -> t
+    type repr = int
+    type predicate = int
+    val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
 end

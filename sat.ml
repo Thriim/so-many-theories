@@ -2,19 +2,7 @@
 open Ast
 
 
-let dummy_map formula =
-  let open Equality_ast in
-  let vars =
-    Formula.fold (fun cl l ->
-      Clause.fold (fun v l ->
-          let i = match v with Var i | Not i -> i in
-          if List.mem i l then l else i :: l) cl l) formula [] in
-  List.fold_left (fun icm i -> IntMap.add i (Op (i, i)) icm) IntMap.empty vars
-
-
-
 let var = function Not v | Var v -> Var v
-
 
 (** Tests if the variables in [m] are a correct model for [c] *)
 let is_model m c = Clause.exists
@@ -79,7 +67,7 @@ module type TheorySolver =
     type t
     type repr
     type predicate
-    val empty : int -> t
+    val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
   end
@@ -88,10 +76,18 @@ module Boolean = struct
   open Equality_ast
 
   type t = unit
-  type repr = operation
-  type predicate = equation
+  type repr = int
+  type predicate = int
   let empty _ = ()
-  let translate = translate
+
+  let translate (nv ,nc, cnf) =
+    let env, f = List.fold_left (fun (m, f) cl ->
+        let m, cl = List.fold_left (fun (m, cl) v ->
+            let v' = if v < 0 then Not (abs v) else Var v in
+            IntMap.add (abs v) (abs v) m, Clause.add v' cl) (m, Clause.empty) cl in
+        m, Formula.add cl f) (IntMap.empty, Formula.empty) cnf in
+    ((nv, nc), env, f)
+
   let add_literal _ _ t = Some t
 end
 
@@ -157,7 +153,8 @@ module Make =
       let theory, previous = List.hd m.previous, List.tl m.previous in
       Continue { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
 
-    let solver (env, bcnf) =
+    let solver ((nv, nc), env, bcnf) =
+      let system = ((nv, nc), env, bcnf) in
       (* let time = ref 0 in *)
       (* let vsids_cst = 3 in *)
       (* let find_two_literals bcnf = () in *)
@@ -199,7 +196,7 @@ module Make =
              env;
              formula = bcnf;
              pool;
-             theory = T.empty @@ Clause.cardinal pool;
+             theory = T.empty @@ system;
              previous = [] })
 
   end
