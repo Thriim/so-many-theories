@@ -52,7 +52,8 @@ module Make : functor (T : TheorySolver) ->
       pool : Clause.t; (** Variables unused in the model *)
       theory : T.t; (** The theory solver structure during the execution *)
       previous : T.t list; (** The previous theory solvers, used for backtracking *)
-      mode : mode
+      mode : mode;
+      resolved : Clause.t
     }
 
     val solver : T.repr Ast.system -> model
