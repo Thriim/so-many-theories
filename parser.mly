@@ -4,6 +4,7 @@
 %{
 
   open Ast
+  open Equality_ast
 
 %}
 
@@ -14,7 +15,7 @@
 
 
 %start file sat
-%type <Ast.cnf> file
+%type <Equality_ast.equation Ast.cnf> file
 %type <Ast.formula> sat
 
 %%

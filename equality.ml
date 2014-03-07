@@ -2,6 +2,7 @@
 
 
 open Ast
+open Equality_ast
 
 module RelSet = Set.Make (struct
   type t = int * int
@@ -15,7 +16,7 @@ open Union_find
 
 type error = UnboundPropVar of int
 exception Error of error
-    
+
 let increment_eqs h (Op (a, b)) ineqs =
   let ra = find h a in
   let rb = find h b in
@@ -28,11 +29,18 @@ let increment_ineqs h (Op (a, b)) ineqs =
   let rb = find h b in
   if ra = rb then None
   else Some (h, RelSet.add (ra, rb) ineqs)
-  
+
+exception End of int
+
 
 module Solver = struct
   type t = Union_find.t * RelSet.t
-  let empty n = Union_find.create (n + 1), RelSet.empty 
+  type repr = operation
+  type input = equation
+
+  let translate = translate
+
+  let empty n = Union_find.create (n + 1), RelSet.empty
 
   let add_literal env var (h, ineqs) =
     let i, f = begin match var with
@@ -44,12 +52,3 @@ module Solver = struct
     end in f op
 
 end
-        
-
-    
-
-
-
-
-
-

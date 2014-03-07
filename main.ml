@@ -37,12 +37,12 @@ let _ =
   try
     let system = if Filename.check_suffix file "cnfuf" then
         let ast = Parser.file Lexer.token lb in
-        Sat.translate ast
+        Equality_ast.translate ast
       else
         let ast = Parser.sat Lexer.token lb in
         dummy_map ast, ast
     in
-    printf "%s@." (Ast.string_of_system system);
+    printf "%s@." (Equality_ast.string_of_op_system system);
     try let m = EqualitySat.solver system in
       printf "SAT \n  with the model: %s@." @@ string_of_model m
     with Unsat ->  printf "UNSAT@."

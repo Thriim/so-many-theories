@@ -1,13 +1,14 @@
-type equation =
-| Neq of int * int
-| Eq of int * int
-type clause = equation list
-type clauses = clause list
-type cnf = int * int * clauses
+
+type 'a clause = 'a list
+
+type 'a clauses = 'a clause list
+
+type 'a cnf = int * int * 'a clauses
+
 type sat_var =
 | Var of int
 | Not of int
-type operation = Op of int * int
+
 
 module IntMap = Map.Make (struct
   type t = int
@@ -22,18 +23,10 @@ module Clause = Set.Make (Literal)
 module Formula = Set.Make (Clause)
 
 type formula = Formula.t
-type system = operation IntMap.t * formula
+type 'a system = 'a IntMap.t * formula
 
 type literal = Decision of sat_var | Unit of sat_var
 type model = literal list
-
-let dummy_map formula =
-  let vars =
-    Formula.fold (fun cl l ->
-      Clause.fold (fun v l ->
-          let i = match v with Var i | Not i -> i in
-          if List.mem i l then l else i :: l) cl l) formula [] in
-  List.fold_left (fun icm i -> IntMap.add i (Op (i, i)) icm) IntMap.empty vars
 
 let not_var = function Not v -> Var v | Var v -> Not v
 
@@ -43,10 +36,10 @@ let string_of_sat_var = function
   | Not i -> "!" ^ string_of_int i
   | Var i -> string_of_int i
 
-let string_of_system (map, fmla) =
+let string_of_system f (map, fmla) =
   sprintf "bindings {\n%s}\n%s"
-    (IntMap.fold (fun  v (Op (i1, i2)) acc ->
-      acc ^ (Format.sprintf "%d %d -> %d\n" i1 i2 v)
+    (IntMap.fold (fun  v op acc ->
+      acc ^ (Format.sprintf "%s -> %d\n" (f op) v)
      ) map "")
     (Formula.fold (fun clause sfml ->
       sprintf "%s\n%s"

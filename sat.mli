@@ -1,32 +1,35 @@
-
 open Ast
 
 exception Unsat
 exception No_literal
 
-val translate : Ast.cnf -> Ast.system
+val dummy_map : formula -> Equality_ast.operation IntMap.t
 
 module type TheorySolver =
   sig
     type t
+    type repr
+    type input
     val empty : int -> t
-    val add_literal : operation IntMap.t -> sat_var -> t -> t option
-    (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
+    val translate : input Ast.cnf -> repr Ast.system
+    val add_literal : repr IntMap.t -> sat_var -> t -> t option
   end
 
 module Boolean :
 sig
     type t
+    type repr
+    type input
     val empty : int -> t
-    val add_literal : operation IntMap.t -> sat_var -> t -> t option
-    (* val is_coherent : operation IntMap.t -> model -> t -> bool *)
+    val translate : input Ast.cnf -> repr Ast.system
+    val add_literal : repr IntMap.t -> sat_var -> t -> t option
 end
 
 module Make : functor (T : TheorySolver) ->
   sig
 
     type solver_model = {
-      env : operation IntMap.t;
+      env : T.repr IntMap.t;
       formula : formula;
       model : model;
       pool : Clause.t;
@@ -34,6 +37,6 @@ module Make : functor (T : TheorySolver) ->
       previous : T.t list
     }
 
-    val solver : Ast.system -> model
+    val solver : T.repr Ast.system -> model
 
   end
