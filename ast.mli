@@ -16,7 +16,7 @@ module Formula : Set.S with type elt = Clause.t
 type formula = Formula.t
 type 'a system = (int * int) * 'a IntMap.t * formula
 
-type literal = Decision of sat_var | Unit of sat_var
+type literal = Decision of sat_var | Unit of sat_var * Clause.t
 type model = literal list
 
 val not_var : sat_var -> sat_var

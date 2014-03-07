@@ -42,6 +42,8 @@ end
 module Make : functor (T : TheorySolver) ->
   sig
 
+    type mode = Resolution | Search
+
     type solver_model = {
       env : T.repr IntMap.t; (** the mapping from propositional variables to
                                theory predicates *)
@@ -49,7 +51,8 @@ module Make : functor (T : TheorySolver) ->
       model : model; (** The model created by the solver during its execution *)
       pool : Clause.t; (** Variables unused in the model *)
       theory : T.t; (** The theory solver structure during the execution *)
-      previous : T.t list (** The previous theory solvers, used for backtracking *)
+      previous : T.t list; (** The previous theory solvers, used for backtracking *)
+      mode : mode
     }
 
     val solver : T.repr Ast.system -> model

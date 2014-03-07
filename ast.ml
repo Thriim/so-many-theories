@@ -25,7 +25,7 @@ module Formula = Set.Make (Clause)
 type formula = Formula.t
 type 'a system = (int * int) * 'a IntMap.t * formula
 
-type literal = Decision of sat_var | Unit of sat_var
+type literal = Decision of sat_var | Unit of sat_var * Clause.t
 type model = literal list
 
 let not_var = function Not v -> Var v | Var v -> Not v
@@ -59,4 +59,4 @@ let string_of_clause cl =
 let string_of_model m =
   List.fold_right (fun v acc -> match v with
       | Decision v -> string_of_sat_var v ^ "@ :: " ^ acc
-      | Unit v -> string_of_sat_var v ^ " :: " ^ acc) m "[]"
+      | Unit (v, _) -> string_of_sat_var v ^ " :: " ^ acc) m "[]"
