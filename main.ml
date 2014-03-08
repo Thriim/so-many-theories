@@ -35,16 +35,23 @@ let solve_boolean lb =
   let ast = Parser.sat Lexer.token lb in
   let system = Boolean.translate ast in
   try
+    let time = Sys.time () in
     let m = SimpleSat.solver system in
-    Format.printf "SAT\n  with the model: %s@." @@ string_of_model m
+    let took = Sys.time () -. time in
+    Format.printf "SAT\n  with the model: %s@." @@ string_of_model m;
+    printf "took: %f@." took
   with Unsat -> printf "UNSAT@."
 
 let solve_equality lb =
   let ast = Parser.file Lexer.token lb in
   let system = Equality_ast.translate ast in
   printf "%s@." (Equality_ast.string_of_op_system system);
-  try let m = EqualitySat.solver system in
-    printf "SAT \n  with the model: %s@." @@ string_of_model m
+  try
+    let time = Sys.time () in
+    let m = EqualitySat.solver system in
+    let took = Sys.time () -. time in
+    printf "SAT \n  with the model: %s@." @@ string_of_model m;
+    printf "took: %f@." took
   with Unsat ->  printf "UNSAT@."
 
 let _ =
