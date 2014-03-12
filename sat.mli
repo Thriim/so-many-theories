@@ -1,7 +1,8 @@
 open Ast
 
 exception Unsat
-exception No_literal
+
+type algorithm = CDCL | DPLL
 
 (** The signature that allows the solver to reason about a theory *)
 module type TheorySolver =
@@ -56,6 +57,6 @@ module Make : functor (T : TheorySolver) ->
       resolved : Clause.t
     }
 
-    val solver : T.repr Ast.system -> model
+    val solver : algorithm -> T.repr Ast.system -> model
 
   end

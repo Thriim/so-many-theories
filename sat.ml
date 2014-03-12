@@ -2,6 +2,9 @@
 open Ast
 
 
+type algorithm = CDCL | DPLL
+
+
 let var = function Not v | Var v -> Var v
 
 (** Tests if the variables in [m] are a correct model for [c] *)
@@ -47,47 +50,12 @@ let apply m c =
   let cl, l = Clause.partition (fun v -> List.mem (not_var v) m) c in
   l, cl
 
-exception Cannot_backjump
+let in_m v m =
+  List.exists (function
+      | Decision c | Unit (c, _) -> c = v || not_var v = c) m
 
-let backjump_split m cl ths =
-  (* let split = function *)
-  (*   | Unit (v, _) :: tl | Decision v :: tl -> v, tl in *)
-  (* let st = ref 0 in *)
-  let found = ref None in
-  (* Format.printf "In split@."; *)
-  (* Format.printf "In backjump split with clause %s@\n" (string_of_clause cl); *)
-  let rec step prev m ths =
-    (* incr st; *)
-    (* Format.printf "Actual model: %s@." @@ string_of_model m; *)
-    if not (contains_decision_literal m) then !found
-    else
-      let m1, m2 = split_at_decision m in
-      (* let l', m2 = List.hd m2, List.tl m2 in *)
-      (* Format.printf "Splited. m1: %s\nm2: %s@\n" (string_of_clause m1) *)
-      (*   (string_of_model m2); *)
-      let th, prevs = List.hd ths, List.tl ths in
-      let l', cl' = apply m2 cl in
-      (* Format.printf "apply -> l': %s; cl': %s@." *)
-      (*   (string_of_clause l') *)
-      (*   (string_of_clause cl'); *)
-      let prev = Clause.union m1 prev in
-      if Clause.cardinal l' = 1 then begin
-        (* Format.printf "Found one@."; *)
-        let l = Clause.choose l' in
-        found := Some
-            (prev, Unit (l, cl') :: (List.tl m2), th, prevs);
-        step prev m2 ths end
-      else step prev m2 ths
-  in
-  let res = step Clause.empty m ths in
-  (* Format.printf "Backjumped %d times@." !st; *)
-  match res with
-  | None -> raise Cannot_backjump
-  | Some res -> res
 
 exception Unsat
-exception No_literal
-
 
 module type TheorySolver =
   sig
@@ -124,6 +92,8 @@ module Make =
 
     type mode = Resolution | Search
 
+    exception No_literal
+
     type solver_model = {
       env : T.repr IntMap.t;
       formula : formula;
@@ -147,16 +117,17 @@ module Make =
         | Some h -> h, (fun m -> Continue m)
         | None -> m.theory, (fun m -> Backtrack m) in
       f { m with
-        model = Decision l :: m.model;
-        pool = Clause.remove l m.pool;
-        previous = prev :: m.previous;
-        theory
-      }
+          model = Decision l :: m.model;
+          pool = Clause.remove l m.pool;
+          previous = prev :: m.previous;
+          theory
+        }
 
     let decision' m =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
       let prev = m.theory in
+      (* Format.printf "Adding decision l: %s@." @@ string_of_sat_var l; *)
       let theory, mode = match T.add_literal m.env l m.theory with
         | Some h -> h, Search
         | None -> m.theory, Resolution in
@@ -186,16 +157,15 @@ module Make =
       if l = Var (-1) then raise No_literal
       else
         let theory, f = match T.add_literal m.env l m.theory with
-        | Some h -> h, (fun m -> Continue m)
-        | None -> m.theory, (fun m -> Backtrack m) in
+          | Some h -> h, (fun m -> Continue m)
+          | None -> m.theory, (fun m -> Backtrack m) in
         f { m with
-          model = Unit (l, Clause.add l cl) :: m.model;
-          pool = Clause.remove l m.pool;
-          theory
-        }
+            model = Unit (l, Clause.add l cl) :: m.model;
+            pool = Clause.remove l m.pool;
+            theory
+          }
 
     let unit' m =
-      (* Format.printf "in unit'@."; *)
       let l, cl =
         try Formula.fold (fun cl acc ->
             let l', cl' = apply m.model cl in
@@ -205,40 +175,65 @@ module Make =
               then raise (Found (l', cl'))
               else acc
             else acc)
-            m.formula (Var (-1), Clause.empty)
+            m.formula (Var 0, Clause.empty)
         with Found (l, cl) -> l, cl in
-      if l = Var (-1) then raise No_literal
-      else
+      if l = Var 0 then raise No_literal
+      else begin
         let prev = m.theory in
         let theory, mode = match T.add_literal m.env l m.theory with
-        | Some h -> h, Search
-        | None -> m.theory, Resolution in
+          | Some h -> h, Search
+          | None -> m.theory, Resolution in
         { m with
           model = Unit (l, Clause.add l cl) :: m.model;
           pool = Clause.remove l m.pool;
           theory; previous = prev :: m.previous; mode
         }
+      end
 
     let backtrack m =
       let m1, m2 = split_at_decision m.model in
       let theory, previous = List.hd m.previous, List.tl m.previous in
       Continue { m with model = m2; pool = Clause.union m1 m.pool; theory; previous }
 
+
+    exception Cannot_backjump
+
+    let split m =
+      let rec step acc pool model ths =
+        if not (contains_decision_literal model) then acc
+        else begin
+          let m1, m2 = split_at_decision model in
+          let th, prev_ths = List.hd ths, List.tl ths in
+          let ld, m2 = List.hd m2, List.tl m2 in
+          let ld = match ld with
+            | Decision v | Unit (v, _) -> var v in
+          let pool = Clause.add ld @@ Clause.union pool m1 in
+          let l', cl' = apply m2 m.resolved in
+          let acc =
+            if Clause.cardinal l' = 1 then
+              let l = Clause.choose l' in
+              if Clause.mem (var l) pool then begin
+                Some ((Clause.remove (var l) pool,
+                       Unit (l, m.resolved) :: m2,
+                       th, prev_ths)) end
+              else acc
+            else acc in
+          step acc pool m2 prev_ths end in
+      match step None m.pool m.model m.previous with
+      | None -> raise Cannot_backjump
+      | Some (pool, model, theory, previous) -> (pool, model, theory, previous)
+
+
     let backjump m =
-      let m1, m2, th, ths = backjump_split m.model m.resolved m.previous in
-      (* Format.printf "Result of backjump :\nm1: %s\nm2: %s\n---------------------\n@." *)
-      (*   (string_of_clause m1) (string_of_model m2); *)
-      let pool = (Clause.union m1 m.pool) in
-      { m with model = m2; theory = th; previous = ths; pool;
+      let pool, model, theory, previous = split m in
+      { m with model; theory; previous; pool;
                mode = Search;
                formula = Formula.add m.resolved m.formula;
                resolved = Clause.empty }
-      (* let gr = empty pool in *)
 
     exception No_conflict
 
     let conflict m =
-      (* Format.printf "In conflict@."; *)
       try
         let cl = Formula.choose @@ unsatisfiable_clauses m.model m.formula in
         { m with mode = Resolution; resolved = cl }
@@ -249,20 +244,14 @@ module Make =
     exception Cannot_resolve
 
     let resolve m =
-      (* Format.printf "In resolve@."; *)
-      (* Format.printf "Before: %s@." (string_of_clause m.resolved); *)
       let v, cl = List.fold_left (fun acc l -> match l with
           | Decision _ -> acc
           | Unit (v, cl) ->
-            (* let v = not_var v in *)
             if Clause.mem (not_var v) m.resolved then (v, Clause.remove v cl)
             else acc) (Var (-1), Clause.empty) m.model in
-      (* Format.printf "Found: %s in %s@." (string_of_sat_var v) *)
-      (*   (string_of_clause cl); *)
       if v = Var (-1) then raise Cannot_resolve
       else
         let r = Clause.union cl @@ Clause.remove (not_var v) m.resolved in
-        (* Format.printf "After: %s@." (string_of_clause r); *)
         { m with resolved = r }
 
     let cdcl ((nv, nc), env, bcnf) =
@@ -291,18 +280,15 @@ module Make =
                   with No_literal -> raise Unsat in
             step m
         | Resolution ->
-          (* Format.printf "In resolution@."; *)
-          if is_unsat m.model m.formula then
-            if not (contains_decision_literal m.model) then raise Unsat
-            else
-              let m =
+          if not (contains_decision_literal m.model) then raise Unsat
+          else
+            let m =
+              try resolve m
+              with Cannot_resolve ->
                 try backjump m
                 with Cannot_backjump ->
-                  try resolve m
-                  with Cannot_resolve -> raise Unsat in
-              (* assert false; *)
-              step m
-          else raise Unsat in
+                  raise Unsat in
+            step m in
       step start
 
 
@@ -317,17 +303,8 @@ module Make =
                     previous = [];
                     mode = Search;
                     resolved = Clause.empty} in
-      (* let time = ref 0 in *)
-      (* let vsids_cst = 3 in *)
-      (* let find_two_literals bcnf = () in *)
 
       let rec step m =
-
-        (* (\* VSIDS *\) *)
-        (* incr time; *)
-        (* let vars = if !time mod 10 = 0 then *)
-        (*     List.map (fun (v, x) -> v, x / vsids_cst (\* ? *\)) vars *)
-        (*   else vars in *)
 
         let do_backtrack, m = match m with
           | Continue m -> false, m
@@ -349,6 +326,8 @@ module Make =
       in
       step (Continue start)
 
-    let solver = cdcl
+    let solver = function
+      | CDCL -> cdcl
+      | DPLL -> dpll
 
   end

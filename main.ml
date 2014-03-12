@@ -9,7 +9,10 @@ open Equality
 
 open Format
 
-let spec = []
+let algorithm = ref CDCL
+
+let spec = ["-dpll", Arg.Unit (fun () -> algorithm := DPLL),
+            "The solver uses the dpll algorithm instead of cdcl"]
 let usage = "prog.byte <file>.cnfuf"
 
 module SimpleSat = Sat.Make(Sat.Boolean)
@@ -36,7 +39,7 @@ let solve_boolean lb =
   let system = Boolean.translate ast in
   try
     let time = Sys.time () in
-    let m = SimpleSat.solver system in
+    let m = SimpleSat.solver !algorithm system in
     let took = Sys.time () -. time in
     Format.printf "SAT\n  with the model: %s@." @@ string_of_model m;
     printf "took: %f@." took
@@ -48,7 +51,7 @@ let solve_equality lb =
   printf "%s@." (Equality_ast.string_of_op_system system);
   try
     let time = Sys.time () in
-    let m = EqualitySat.solver system in
+    let m = EqualitySat.solver !algorithm system in
     let took = Sys.time () -. time in
     printf "SAT \n  with the model: %s@." @@ string_of_model m;
     printf "took: %f@." took
