@@ -30,6 +30,10 @@ type model = literal list
 
 let not_var = function Not v -> Var v | Var v -> Not v
 
+let model_to_clause =
+  List.fold_left (fun acc -> function Decision l | Unit (l, _) ->
+      Clause.add l acc) Clause.empty
+
 open Format
 
 let string_of_sat_var = function

@@ -20,7 +20,7 @@ type literal = Decision of sat_var | Unit of sat_var * Clause.t
 type model = literal list
 
 val not_var : sat_var -> sat_var
-
+val model_to_clause : model -> Clause.t
 
 val string_of_sat_var : sat_var -> string
 val string_of_clause : Clause.t -> string

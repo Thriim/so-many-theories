@@ -109,7 +109,7 @@ module Make =
 
     (** Takes a variable in the pool and add it as Decision literal, or raises
         No_literal if no literal free *)
-    let decision m =
+    let decision_dpll m =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
       let prev = m.theory in
@@ -123,38 +123,47 @@ module Make =
           theory
         }
 
-    let decision' m =
+    let decision_cdcl m =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
       let prev = m.theory in
       (* Format.printf "Adding decision l: %s@." @@ string_of_sat_var l; *)
-      let theory, mode = match T.add_literal m.env l m.theory with
-        | Some h -> h, Search
-        | None -> m.theory, Resolution in
+      let theory, mode, resolved = match T.add_literal m.env l m.theory with
+        | Some h -> h, Search, m.resolved
+        | None -> m.theory, Resolution,
+                  List.fold_left (fun acc ->
+                      function Decision l | Unit (l, _) ->
+                        Clause.add (not_var l) acc)
+                    Clause.empty m.model in
       { m with
         model = Decision l :: m.model;
         pool = Clause.remove l m.pool;
         previous = prev :: m.previous;
-        theory; mode
+        theory; mode; resolved
       }
 
 
     exception Found of sat_var * Clause.t
 
+    let unit_search m =
+      try Formula.fold (fun cl acc ->
+          let l', cl' = apply m.model cl in
+          if Clause.cardinal l' = 1 then
+            let l' = Clause.choose l' in
+            if not (List.exists
+                      (function Decision v | Unit (v, _)
+                        -> v = l' || v = not_var l') m.model)
+            then raise (Found (l', cl'))
+            else acc
+          else acc)
+          m.formula (Var 0, Clause.empty)
+      with Found (l, cl) -> l, cl
+
+
     (** Naive unit rule, which find the first clause that have only one unresolved variable *)
-    let unit m =
-      let l, cl =
-        try Formula.fold (fun cl acc ->
-            let l', cl' = apply m.model cl in
-            if Clause.cardinal l' = 1 then
-              let l' = Clause.choose l' in
-              if not (List.exists (function Decision v | Unit (v, _) -> v = l') m.model)
-              then raise (Found (l', cl'))
-              else acc
-            else acc)
-            m.formula (Var (-1), Clause.empty)
-        with Found (l, cl) -> l, cl in
-      if l = Var (-1) then raise No_literal
+    let unit_dpll m =
+      let l, cl = unit_search m in
+      if l = Var 0 then raise No_literal
       else
         let theory, f = match T.add_literal m.env l m.theory with
           | Some h -> h, (fun m -> Continue m)
@@ -165,28 +174,22 @@ module Make =
             theory
           }
 
-    let unit' m =
-      let l, cl =
-        try Formula.fold (fun cl acc ->
-            let l', cl' = apply m.model cl in
-            if Clause.cardinal l' = 1 then
-              let l' = Clause.choose l' in
-              if not (List.exists (function Decision v | Unit (v, _) -> v = l') m.model)
-              then raise (Found (l', cl'))
-              else acc
-            else acc)
-            m.formula (Var 0, Clause.empty)
-        with Found (l, cl) -> l, cl in
+    let unit_cdcl m =
+      let l, cl = unit_search m in
       if l = Var 0 then raise No_literal
       else begin
+        (* Format.printf "Unit adding l: %s@." @@ string_of_sat_var l; *)
         let prev = m.theory in
-        let theory, mode = match T.add_literal m.env l m.theory with
-          | Some h -> h, Search
-          | None -> m.theory, Resolution in
+        let theory, mode, resolved = match T.add_literal m.env l m.theory with
+          | Some h -> h, Search, m.resolved
+          | None -> m.theory, Resolution, List.fold_left (fun acc ->
+                      function Decision l | Unit (l, _) ->
+                        Clause.add (not_var l) acc)
+                    Clause.empty m.model in
         { m with
           model = Unit (l, Clause.add l cl) :: m.model;
-          pool = Clause.remove l m.pool;
-          theory; previous = prev :: m.previous; mode
+          pool = Clause.remove (var l) m.pool;
+          theory; previous = prev :: m.previous; mode; resolved
         }
       end
 
@@ -267,6 +270,8 @@ module Make =
                     resolved = Clause.empty} in
 
       let rec step m =
+        (* Format.printf "Actual model: %s\nresolved: %s@." *)
+        (*   (string_of_model m.model) (string_of_clause m.resolved); *)
         match m.mode with
         | Search ->
           if satisfies m.model m.formula then m.model
@@ -274,9 +279,9 @@ module Make =
             let m =
               try conflict m
               with No_conflict ->
-                try unit' m
+                try unit_cdcl m
                 with No_literal ->
-                  try decision' m
+                  try decision_cdcl m
                   with No_literal -> raise Unsat in
             step m
         | Resolution ->
@@ -317,9 +322,9 @@ module Make =
             step @@ backtrack m
         else
           let m =
-            try unit m
+            try unit_dpll m
             with No_literal ->
-              try decision m
+              try decision_dpll m
               with No_literal -> Backtrack m in
           step m
 

@@ -41,7 +41,8 @@ let solve_boolean lb =
     let time = Sys.time () in
     let m = SimpleSat.solver !algorithm system in
     let took = Sys.time () -. time in
-    Format.printf "SAT\n  with the model: %s@." @@ string_of_model m;
+    Format.printf "SAT\n  with the model: %s@." @@ string_of_clause
+      @@ model_to_clause m;
     printf "took: %f@." took
   with Unsat -> printf "UNSAT@."
 
@@ -53,7 +54,8 @@ let solve_equality lb =
     let time = Sys.time () in
     let m = EqualitySat.solver !algorithm system in
     let took = Sys.time () -. time in
-    printf "SAT \n  with the model: %s@." @@ string_of_model m;
+    printf "SAT \n  with the model: %s@." @@ string_of_clause
+    @@ model_to_clause m;
     printf "took: %f@." took
   with Unsat ->  printf "UNSAT@."
 
