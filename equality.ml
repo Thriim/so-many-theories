@@ -51,4 +51,5 @@ module Solver = struct
       Not_found -> raise (Error (UnboundPropVar i))
     end in f op
 
+  let propagate _ m _ = m
 end

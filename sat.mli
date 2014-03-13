@@ -28,6 +28,9 @@ module type TheorySolver =
     (** Add a literal in the theorySolver, returns None if it renders it
       inconsistent, or Some otherwise *)
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
+
+    (** Adds if possible a literal that is implied by the model *)
+    val propagate : repr IntMap.t -> model -> t -> model
   end
 
 module Boolean :
@@ -38,6 +41,7 @@ sig
     val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
+    val propagate : repr IntMap.t -> model -> t -> model
 end
 
 module Make : functor (T : TheorySolver) ->

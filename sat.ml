@@ -65,6 +65,7 @@ module type TheorySolver =
     val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
     val add_literal : repr IntMap.t -> sat_var -> t -> t option
+    val propagate : repr IntMap.t -> model -> t -> model
   end
 
 module Boolean = struct
@@ -84,6 +85,7 @@ module Boolean = struct
     ((nv, nc), env, f)
 
   let add_literal _ _ t = Some t
+  let propagate _ m _ = m
 end
 
 module Make =
@@ -257,6 +259,10 @@ module Make =
         let r = Clause.union cl @@ Clause.remove (not_var v) m.resolved in
         { m with resolved = r }
 
+    let propagate m =
+      let model = T.propagate m.env m.model m.theory in
+      { m with model }
+
     let cdcl ((nv, nc), env, bcnf) =
       let system = ((nv, nc), env, bcnf) in
       let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
@@ -276,6 +282,7 @@ module Make =
         | Search ->
           if satisfies m.model m.formula then m.model
           else
+            let m = propagate m in
             let m =
               try conflict m
               with No_conflict ->
