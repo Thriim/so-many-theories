@@ -130,8 +130,10 @@ module Make =
         }
 
     let decision_cdcl m =
-      let l = try Clause.choose m.pool
-        with Not_found -> raise No_literal in
+      let l = Hashtbl.fold (fun l v (accl, accv) ->
+          if v > accv && Clause.mem (Var l) m.pool then (l, v)
+          else (accl, accv)) m.vsids (-1, -1) in
+      let l = if l = (-1, -1) then raise No_literal else Var (fst l) in
       let prev = m.theory in
       (* Format.printf "Adding decision l: %s@." @@ string_of_sat_var l; *)
       let theory, mode, resolved = match T.add_literal m.env l m.theory with
@@ -235,6 +237,9 @@ module Make =
 
     let backjump m =
       let pool, model, theory, previous = split m in
+      Clause.iter (function Var v | Not v ->
+          let value = Hashtbl.find m.vsids v in
+          Hashtbl.replace m.vsids v (value+1)) m.resolved;
       { m with model; theory; previous; pool;
                mode = Search;
                formula = Formula.add m.resolved m.formula;
@@ -282,9 +287,14 @@ module Make =
                   } in
       Clause.iter (function Var v | Not v -> Hashtbl.add start.vsids v 0) start.pool;
 
-      let rec step m =
-        (* Format.printf "Actual model: %s\nresolved: %s@." *)
-        (*   (string_of_model m.model) (string_of_clause m.resolved); *)
+      let period = 10 in
+      let divide = 3 in
+
+      let rec step count m =
+
+        if count mod period = 0 then
+          Hashtbl.iter (fun k v -> Hashtbl.replace m.vsids k (v / divide)) m.vsids;
+
         match m.mode with
         | Search ->
           if satisfies m.model m.formula then m.model
@@ -297,7 +307,7 @@ module Make =
                 with No_literal ->
                   try decision_cdcl m
                   with No_literal -> raise Unsat in
-            step m
+            step (count+1) m
         | Resolution ->
           if not (contains_decision_literal m.model) then raise Unsat
           else
@@ -307,8 +317,8 @@ module Make =
                 try backjump m
                 with Cannot_backjump ->
                   raise Unsat in
-            step m in
-      step start
+            step (count+1) m in
+      step 0 start
 
 
     let dpll ((nv, nc), env, bcnf) =
