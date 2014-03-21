@@ -64,8 +64,8 @@ module type TheorySolver =
     type predicate
     val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
-    val add_literal : repr IntMap.t -> sat_var -> t -> t option
-    val propagate : repr IntMap.t -> model -> t -> model
+    val add_literal : repr env -> sat_var -> t -> t option
+    val propagate : repr env -> model -> t -> model
   end
 
 module Boolean = struct
@@ -77,12 +77,15 @@ module Boolean = struct
   let empty _ = ()
 
   let translate (nv ,nc, cnf) =
-    let env, f = List.fold_left (fun (m, f) cl ->
-        let m, cl = List.fold_left (fun (m, cl) v ->
+    let env = Hashtbl.create nv in
+    let inv_env = Hashtbl.create nv in
+    let f = List.fold_left (fun f cl ->
+        let cl = List.fold_left (fun cl v ->
             let v' = if v < 0 then Not (abs v) else Var v in
-            IntMap.add (abs v) (abs v) m, Clause.add v' cl) (m, Clause.empty) cl in
-        m, Formula.add cl f) (IntMap.empty, Formula.empty) cnf in
-    ((nv, nc), env, f)
+            Hashtbl.add env (abs v) (abs v);
+            Clause.add v' cl) Clause.empty cl in
+        Formula.add cl f) Formula.empty cnf in
+    ((nv, nc), (env, inv_env), f)
 
   let add_literal _ _ t = Some t
   let propagate _ m _ = m
@@ -97,14 +100,15 @@ module Make =
     exception No_literal
 
     type solver_model = {
-      env : T.repr IntMap.t;
+      env : T.repr env;
       formula : formula;
       model : model;
       pool : Clause.t;
       theory : T.t;
       previous : T.t list;
       mode : mode;
-      resolved : Clause.t
+      resolved : Clause.t;
+      vsids : (int, int) Hashtbl.t
     }
 
     type result = Continue of solver_model | Backtrack of solver_model
@@ -265,7 +269,7 @@ module Make =
 
     let cdcl ((nv, nc), env, bcnf) =
       let system = ((nv, nc), env, bcnf) in
-      let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
+      let pool = Hashtbl.fold (fun i _ pool -> Clause.add (Var i) pool) (fst env) Clause.empty in
       let start = { model = [];
                     env;
                     formula = bcnf;
@@ -273,7 +277,10 @@ module Make =
                     theory = T.empty system;
                     previous = [];
                     mode = Search;
-                    resolved = Clause.empty} in
+                    resolved = Clause.empty;
+                    vsids = Hashtbl.create nv;
+                  } in
+      Clause.iter (function Var v | Not v -> Hashtbl.add start.vsids v 0) start.pool;
 
       let rec step m =
         (* Format.printf "Actual model: %s\nresolved: %s@." *)
@@ -306,7 +313,7 @@ module Make =
 
     let dpll ((nv, nc), env, bcnf) =
       let system = ((nv, nc), env, bcnf) in
-      let pool = IntMap.fold (fun i _ pool -> Clause.add (Var i) pool) env Clause.empty in
+      let pool = Hashtbl.fold (fun i _ pool -> Clause.add (Var i) pool) (fst env) Clause.empty in
       let start = { model = [];
                     env;
                     formula = bcnf;
@@ -314,7 +321,10 @@ module Make =
                     theory = T.empty system;
                     previous = [];
                     mode = Search;
-                    resolved = Clause.empty} in
+                    resolved = Clause.empty;
+                    vsids = Hashtbl.create nv
+                  } in
+      Clause.iter (function Var v | Not v -> Hashtbl.add start.vsids v 0) start.pool;
 
       let rec step m =
 

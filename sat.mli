@@ -27,10 +27,10 @@ module type TheorySolver =
 
     (** Add a literal in the theorySolver, returns None if it renders it
       inconsistent, or Some otherwise *)
-    val add_literal : repr IntMap.t -> sat_var -> t -> t option
+    val add_literal : repr env -> sat_var -> t -> t option
 
     (** Adds if possible a literal that is implied by the model *)
-    val propagate : repr IntMap.t -> model -> t -> model
+    val propagate : repr env -> model -> t -> model
   end
 
 module Boolean :
@@ -40,8 +40,8 @@ sig
     type predicate = int
     val empty : repr Ast.system -> t
     val translate : predicate Ast.cnf -> repr Ast.system
-    val add_literal : repr IntMap.t -> sat_var -> t -> t option
-    val propagate : repr IntMap.t -> model -> t -> model
+    val add_literal : repr env -> sat_var -> t -> t option
+    val propagate : repr env -> model -> t -> model
 end
 
 module Make : functor (T : TheorySolver) ->
@@ -50,7 +50,7 @@ module Make : functor (T : TheorySolver) ->
     type mode = Resolution | Search
 
     type solver_model = {
-      env : T.repr IntMap.t; (** the mapping from propositional variables to
+      env : T.repr env; (** the mapping from propositional variables to
                                theory predicates *)
       formula : formula; (** The original formula *)
       model : model; (** The model created by the solver during its execution *)
@@ -58,7 +58,8 @@ module Make : functor (T : TheorySolver) ->
       theory : T.t; (** The theory solver structure during the execution *)
       previous : T.t list; (** The previous theory solvers, used for backtracking *)
       mode : mode;
-      resolved : Clause.t
+      resolved : Clause.t;
+      vsids : (int, int) Hashtbl.t
     }
 
     val solver : algorithm -> T.repr Ast.system -> model

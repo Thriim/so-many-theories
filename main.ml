@@ -16,7 +16,7 @@ let spec = ["-dpll", Arg.Unit (fun () -> algorithm := DPLL),
 let usage = "prog.byte <file>.cnfuf"
 
 module SimpleSat = Sat.Make(Sat.Boolean)
-module EqualitySat = Sat.Make(Equality.Solver)
+(* module EqualitySat = Sat.Make(Equality.Solver) *)
 
 let file =
   let file = ref None in
@@ -46,25 +46,25 @@ let solve_boolean lb =
     printf "took: %f@." took
   with Unsat -> printf "UNSAT@."
 
-let solve_equality lb =
-  let ast = Parser.file Lexer.token lb in
-  let system = Equality_ast.translate ast in
-  printf "%s@." (Equality_ast.string_of_op_system system);
-  try
-    let time = Sys.time () in
-    let m = EqualitySat.solver !algorithm system in
-    let took = Sys.time () -. time in
-    printf "SAT \n  with the model: %s@." @@ string_of_clause
-    @@ model_to_clause m;
-    printf "took: %f@." took
-  with Unsat ->  printf "UNSAT@."
+(* let solve_equality lb = *)
+(*   let ast = Parser.file Lexer.token lb in *)
+(*   let system = Equality_ast.translate ast in *)
+(*   printf "%s@." (Equality_ast.string_of_op_system system); *)
+(*   try *)
+(*     let time = Sys.time () in *)
+(*     let m = EqualitySat.solver !algorithm system in *)
+(*     let took = Sys.time () -. time in *)
+(*     printf "SAT \n  with the model: %s@." @@ string_of_clause *)
+(*     @@ model_to_clause m; *)
+(*     printf "took: %f@." took *)
+(*   with Unsat ->  printf "UNSAT@." *)
 
 let _ =
   let d = open_in file in
   let lb = Lexing.from_channel d in
   try
-    if Filename.check_suffix file "cnfuf" then solve_equality lb
-    else solve_boolean lb
+    (* if Filename.check_suffix file "cnfuf" then solve_equality lb *)
+    (* else  *)solve_boolean lb
   with
   | Lexical_error s ->
     report_loc (lexeme_start_p lb, lexeme_end_p lb);
