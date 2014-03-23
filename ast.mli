@@ -14,11 +14,12 @@ module Clause : Set.S with type elt = sat_var
 module Formula : Set.S with type elt = Clause.t
 
 type formula = Formula.t
-(* type 'a system = (int * int) * 'a IntMap.t * formula *)
 
 type literal = Decision of sat_var | Unit of sat_var * Clause.t
 type model = literal list
 
+(* The second hashtbl is the reverse of the first one, just for simplicity in
+  equality *)
 type 'a env = (int, 'a) Hashtbl.t * ('a, int) Hashtbl.t
 
 type 'a system = (int * int) * 'a env * formula

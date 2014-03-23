@@ -4,6 +4,10 @@ exception Unsat
 
 type algorithm = CDCL | DPLL
 
+val vsids_period : int ref
+val vsids_divider : int ref
+val use_vsids : bool ref
+
 (** The signature that allows the solver to reason about a theory *)
 module type TheorySolver =
   sig
@@ -57,9 +61,9 @@ module Make : functor (T : TheorySolver) ->
       pool : Clause.t; (** Variables unused in the model *)
       theory : T.t; (** The theory solver structure during the execution *)
       previous : T.t list; (** The previous theory solvers, used for backtracking *)
-      mode : mode;
-      resolved : Clause.t;
-      vsids : (int, int) Hashtbl.t
+      mode : mode; (** The CDCL mode *)
+      resolved : Clause.t; (** The clause to resolve while in resolution mode *)
+      vsids : (int, int) Hashtbl.t (** Tne VSIDS values *)
     }
 
     val solver : algorithm -> T.repr Ast.system -> model

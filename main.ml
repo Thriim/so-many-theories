@@ -12,7 +12,19 @@ open Format
 let algorithm = ref CDCL
 
 let spec = ["-dpll", Arg.Unit (fun () -> algorithm := DPLL),
-            "The solver uses the dpll algorithm instead of cdcl"]
+            "The solver uses the dpll algorithm instead of cdcl";
+
+            "-period", Arg.Set_int Sat.vsids_period,
+            "Sets the period of of vsids division";
+
+            "-div", Arg.Set_int Sat.vsids_divider,
+            "Sets the value of the vsids divider";
+
+            "-no-vsids", Arg.Unit (fun () -> Sat.use_vsids := false),
+            "Deactivates the vsids algorithm for CDCL"
+]
+
+
 let usage = "prog.byte <file>.cnfuf"
 
 module SimpleSat = Sat.Make(Sat.Boolean)

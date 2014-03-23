@@ -5,6 +5,10 @@ open Ast
 type algorithm = CDCL | DPLL
 
 
+let vsids_period = ref 5
+let vsids_divider = ref 3
+let use_vsids = ref true
+
 let var = function Not v | Var v -> Var v
 
 (** Tests if the variables in [m] are a correct model for [c] *)
@@ -130,12 +134,20 @@ module Make =
         }
 
     let decision_cdcl m =
-      let l = Hashtbl.fold (fun l v (accl, accv) ->
-          if v > accv && Clause.mem (Var l) m.pool then (l, v)
-          else (accl, accv)) m.vsids (-1, -1) in
-      let l = if l = (-1, -1) then raise No_literal else Var (fst l) in
+      let l = if !use_vsids then
+          Hashtbl.fold (fun l v (accl, accv) ->
+              if v > accv && Clause.mem (Var l) m.pool then (l, v)
+              else (accl, accv)) m.vsids (-1, -1)
+            (* in case we don't use VSIDS algorithm, we don't care about this *)
+        else 0, 0 in
+
+      let l = if !use_vsids then
+          if l = (-1, -1) then raise No_literal else Var (fst l)
+        else
+          try Clause.choose m.pool
+          with Not_found -> raise No_literal in
+
       let prev = m.theory in
-      (* Format.printf "Adding decision l: %s@." @@ string_of_sat_var l; *)
       let theory, mode, resolved = match T.add_literal m.env l m.theory with
         | Some h -> h, Search, m.resolved
         | None -> m.theory, Resolution,
@@ -237,9 +249,12 @@ module Make =
 
     let backjump m =
       let pool, model, theory, previous = split m in
-      Clause.iter (function Var v | Not v ->
-          let value = Hashtbl.find m.vsids v in
-          Hashtbl.replace m.vsids v (value+1)) m.resolved;
+
+      if !use_vsids then
+        Clause.iter (function Var v | Not v ->
+            let value = Hashtbl.find m.vsids v in
+            Hashtbl.replace m.vsids v (value+1)) m.resolved;
+
       { m with model; theory; previous; pool;
                mode = Search;
                formula = Formula.add m.resolved m.formula;
@@ -287,12 +302,12 @@ module Make =
                   } in
       Clause.iter (function Var v | Not v -> Hashtbl.add start.vsids v 0) start.pool;
 
-      let period = 10 in
-      let divide = 3 in
+      let period = !vsids_period in
+      let divide = !vsids_divider in
 
       let rec step count m =
 
-        if count mod period = 0 then
+        if count mod period = 0 && !use_vsids then
           Hashtbl.iter (fun k v -> Hashtbl.replace m.vsids k (v / divide)) m.vsids;
 
         match m.mode with
