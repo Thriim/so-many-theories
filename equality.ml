@@ -95,7 +95,7 @@ module Solver = struct
     | Var i -> i, increment_eqs h ineqs
     | Not i -> i, increment_ineqs h ineqs
     end in
-    let op = begin try IntMap.find i env with
+    let op = begin try Hashtbl.find (fst env) i with
       Not_found -> raise (Error (UnboundPropVar i))
     end in f op
 
