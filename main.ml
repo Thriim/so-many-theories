@@ -46,6 +46,7 @@ let report_loc (b,e) =
   let lc = e.pos_cnum - b.pos_bol + 1 in
   eprintf "File \"%s\", line %d, characters %d-%d:\n" file l fc lc
 
+(** Solves a boolean CNF *)
 let solve_boolean lb =
   let ast = Parser.sat Lexer.token lb in
   let system = Boolean.translate ast in
@@ -58,6 +59,7 @@ let solve_boolean lb =
     printf "took: %f@." took
   with Unsat -> printf "UNSAT@."
 
+(** Solves an equality cnf *)
 let solve_equality lb =
   let ast = Parser.file Lexer.token lb in
   let system = Equality_ast.translate ast in

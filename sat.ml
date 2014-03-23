@@ -80,6 +80,7 @@ module Boolean = struct
   type predicate = int
   let empty _ = ()
 
+  (** Cross the cnf from parser and creates the appropriate environment *)
   let translate (nv ,nc, cnf) =
     let env = Hashtbl.create nv in
     let inv_env = Hashtbl.create nv in
@@ -123,9 +124,12 @@ module Make =
       let l = try Clause.choose m.pool
         with Not_found -> raise No_literal in
       let prev = m.theory in
+
+      (* If the model is not correct according to the theory, we will backtrack *)
       let theory, f = match T.add_literal m.env l m.theory with
         | Some h -> h, (fun m -> Continue m)
         | None -> m.theory, (fun m -> Backtrack m) in
+
       f { m with
           model = Decision l :: m.model;
           pool = Clause.remove l m.pool;
@@ -134,6 +138,7 @@ module Make =
         }
 
     let decision_cdcl m =
+      (* Takes the variable with the highest score and avalaible in the pool *)
       let l = if !use_vsids then
           Hashtbl.fold (fun l v (accl, accv) ->
               if v > accv && Clause.mem (Var l) m.pool then (l, v)
@@ -148,6 +153,8 @@ module Make =
           with Not_found -> raise No_literal in
 
       let prev = m.theory in
+
+      (* If the model is false in the theory, we change mode *)
       let theory, mode, resolved = match T.add_literal m.env l m.theory with
         | Some h -> h, Search, m.resolved
         | None -> m.theory, Resolution,
@@ -165,6 +172,8 @@ module Make =
 
     exception Found of sat_var * Clause.t
 
+
+    (** Finds a variable that is mandatory to make a clause true *)
     let unit_search m =
       try Formula.fold (fun cl acc ->
           let l', cl' = apply m.model cl in
@@ -198,7 +207,6 @@ module Make =
       let l, cl = unit_search m in
       if l = Var 0 then raise No_literal
       else begin
-        (* Format.printf "Unit adding l: %s@." @@ string_of_sat_var l; *)
         let prev = m.theory in
         let theory, mode, resolved = match T.add_literal m.env l m.theory with
           | Some h -> h, Search, m.resolved
@@ -221,27 +229,40 @@ module Make =
 
     exception Cannot_backjump
 
+    (* Finds a possible state for the backjump *)
     let split m =
       let rec step acc pool model ths =
         if not (contains_decision_literal model) then acc
         else begin
+          (* splits at next decision literal *)
           let m1, m2 = split_at_decision model in
+
+          (* backtrack theory *)
           let th, prev_ths = List.hd ths, List.tl ths in
+
+          (* retrieve the actual decision literal and add it to the pool *)
           let ld, m2 = List.hd m2, List.tl m2 in
           let ld = match ld with
             | Decision v | Unit (v, _) -> var v in
           let pool = Clause.add ld @@ Clause.union pool m1 in
+
+          (* Tries to find a clause that only needs one variable *)
           let l', cl' = apply m2 m.resolved in
           let acc =
             if Clause.cardinal l' = 1 then
               let l = Clause.choose l' in
+
+              (* If the variable is available, we save this state as a possible
+                backjump state *)
               if Clause.mem (var l) pool then begin
                 Some ((Clause.remove (var l) pool,
                        Unit (l, m.resolved) :: m2,
                        th, prev_ths)) end
+
               else acc
             else acc in
           step acc pool m2 prev_ths end in
+
       match step None m.pool m.model m.previous with
       | None -> raise Cannot_backjump
       | Some (pool, model, theory, previous) -> (pool, model, theory, previous)
