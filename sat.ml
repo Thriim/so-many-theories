@@ -304,9 +304,17 @@ module Make =
         let r = Clause.union cl @@ Clause.remove (not_var v) m.resolved in
         { m with resolved = r }
 
+    (** Tries to propagate, if the new model is unsat changes the mode to
+      resolution *)
     let propagate m =
       let model = T.propagate m.env m.model m.theory in
-      { m with model }
+      let m' = { m with model } in
+      if is_unsat model m.formula then
+        { m with resolved = List.fold_left (fun acc ->
+             function Decision l | Unit (l, _) ->
+               Clause.add (not_var l) acc)
+             Clause.empty model; mode = Resolution}
+      else m'
 
     let cdcl ((nv, nc), env, bcnf) =
       let system = ((nv, nc), env, bcnf) in
@@ -331,11 +339,12 @@ module Make =
         if count mod period = 0 && !use_vsids then
           Hashtbl.iter (fun k v -> Hashtbl.replace m.vsids k (v / divide)) m.vsids;
 
+        let m = propagate m in
+
         match m.mode with
         | Search ->
           if satisfies m.model m.formula then m.model
           else
-            let m = propagate m in
             let m =
               try conflict m
               with No_conflict ->

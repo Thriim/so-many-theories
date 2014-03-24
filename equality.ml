@@ -42,7 +42,9 @@ let find_int (inttbl, _) i = Hashtbl.find inttbl i
 let op a b = let a, b = if a < b then a, b else b, a in Op (a, b)
 
 
-let rec propagate : operation Ast.env -> Ast.model -> (Union_find.t * RelSet.t) -> Ast.model = fun ((optbl, inttbl) as env) model (h, ineqs) ->
+let rec propagate :
+  operation Ast.env -> Ast.model -> (Union_find.t * RelSet.t) -> Ast.model =
+  fun ((optbl, inttbl) as env) model (h, ineqs) ->
   let add_one op m =
     try
       let i = find_op env op in
