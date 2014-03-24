@@ -35,37 +35,50 @@ L'exéctuable peut prendre deux types de fichiers, tous deux au format
 
 
 Pour la partie \emph{SAT} du solver, DPLL et CDCL ont tous deux été
-implémentés. En revanche, CDCL étant plus efficace c'est celui qui est retenu
-comme algorithme par défaut. La version de DPLL est la plus simple, sans
-backjump donc. Elle est toujours accessible via l'option \texttt{-dpll}.
+implémentés. En revanche, CDCL étant plus efficace c'est celui qui est
+retenu comme algorithme par défaut. La version de DPLL est la plus
+simple, sans backjump donc. Elle est toujours accessible via l'option
+\texttt{-dpll}.
 
-Pour CDCL, il y a donc bien le backjump et l'apprentissage, mais également VSIDS
-pour le choix des variables de décision. La période et la constante pour diviser
-les scores sont d'ailleurs paramétrables via les options \texttt{-period} et
-\texttt{div}. Enfin, VSIDS est totalement désactivable via \texttt{-no-vsids},
-en particulier pour tester l'impact de cette heuristique (qui est largement
-visible).
+Cette version de CDCL implémente le backjump et l'apprentissage, mais
+également VSIDS pour le choix des variables de décision. La période et
+la constante pour diviser les scores sont d'ailleurs paramétrables via
+les options \texttt{-period} et \texttt{div}. Enfin, VSIDS est
+totalement désactivable via \texttt{-no-vsids}, en particulier pour
+tester l'impact de cette heuristique (qui est largement visible).
 
-La partie intéressante est que le SAT-solver est functorisé, et prend en
-paramètre un module \emph{TheorySolver} qui symbolise la partie théorie de
-SMT. Du coup, la théorie des booléens résolue par SAT n'est rien qu'un module
-qui ne fait rien d'autre que de suivre l'avis de SAT et ne fait rien de ses
-arguments pour chacune de ses fonctions. C'est ce qui permet de tester que les
-algorithmes DPLL et CDCL fonctionnent correctement. L'égalité est donc encodée
-dans un tel module, et \emph{en théorie} il devrait être possible de brancher
-n'importe quel solveur pour une théorie (ou une combinaison) et d'utiliser la
-partie SAT du projet.
+La partie intéressante est que le SAT-solver est functorisé, et prend
+en paramètre un module \emph{TheorySolver} qui symbolise la partie
+théorie de SMT. Du coup, la théorie des booléens résolue par SAT n'est
+rien qu'un module qui ne fait rien d'autre que de suivre l'avis de SAT
+et ne fait rien de ses arguments pour chacune de ses fonctions. C'est
+ce qui permet de tester que les algorithmes DPLL et CDCL fonctionnent
+correctement. L'égalité est donc encodée dans un tel module, et
+\emph{en théorie} il devrait être possible de brancher n'importe quel
+solveur pour une théorie (ou une combinaison) et d'utiliser la partie
+SAT du projet.
 
-Ce type de solveur a une fonction principale qui est \texttt{add\_literal}, qui
-ajoute un litéral à la théorie et retourne une nouvelle structure de donnée qui
-symbolise cette théorie si cet ajout est correct, ou \texttt{None} si l'ajout
-est contraire à la théorie. L'appel à cet fonction est fait à chaque ajout d'un
-literal (dans les règles Unit et Decide), ce qui permet de
+Ce type de solveur a une fonction principale qui est
+\texttt{add\_literal}, qui ajoute un litéral à la théorie et retourne
+une nouvelle structure de donnée qui symbolise cette théorie si cet
+ajout est correct, ou \texttt{None} si l'ajout est contraire à la
+théorie. L'appel à cet fonction est fait à chaque ajout d'un literal
+(dans les règles Unit et Decide), ce qui permet de
 backtracker/backjumper dès que nécessaire.
 
 \medskip
 
-Explication sur égalité ?
+La partie SMT de ce projet concerne la théorie de l'égalité simple
+(sans fonctions non-interprétées). L'implémentation est basée sur une
+structure Union Find très largement inspirée des articles fournis en
+lecture pour ce projet. Le module Equality implémente la fonction
+\emph{add_literal}. Si le literal rencontré est une inégalité, on
+ajoute cette égalité à la représentation, sinon, on test la cohérence
+du modèle courant.
 
+On notera aussi l'ajout d'une fonction permettant de propager les
+égalités en ajoutant des clauses au modèle en les déduisant : Pour
+chaque égalité $a = b$, on ajoute $repr a = b$ et $repr b = a$. C'est
+une propagation certe naïve, mais simple.
 
 \end{document}

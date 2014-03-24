@@ -34,15 +34,18 @@ let increment_ineqs h ineqs (Op (a, b)) =
 exception End of int
 
 
-let reverse_find_env env a b =
-  List.find (fun (i, (Op (a', b'))) -> a = a' && b = b'
-  ) (IntMap.bindings env)
+let find_op (_, optbl) op = Hashtbl.find optbl op
+let find_int (inttbl, _) i = Hashtbl.find inttbl i
 
 
-let rec propagate env model (h, ineqs) =
-  let add_one a b m =
+
+let op a b = let a, b = if a < b then a, b else b, a in Op (a, b)
+
+
+let rec propagate : operation Ast.env -> Ast.model -> (Union_find.t * RelSet.t) -> Ast.model = fun ((optbl, inttbl) as env) model (h, ineqs) ->
+  let add_one op m =
     try
-      let i, _ = reverse_find_env env a b in
+      let i = find_op env op in
       let lit = Decision (Var i) in
       if (List.exists (fun lit ->
           let var = match lit with
@@ -63,16 +66,16 @@ let rec propagate env model (h, ineqs) =
     match var with
     | Not i -> m
     | Var i ->
-      let Op(a, b) = begin try IntMap.find i env with
+      let Op(a, b) = begin try find_int env i with
       | Not_found -> raise (Error (UnboundPropVar i))
       end in
       let ra, rb = find h a, find h b in
       if ra = rb then
         (if ra <> a then
             if rb <> b then
-              add_one ra b (add_one rb a m)
-            else add_one ra b m
-         else (if rb <> b then add_one rb a m else m))
+              add_one (op ra b) (add_one (op rb a) m)
+            else add_one (op ra b) m
+         else (if rb <> b then add_one (op rb a) m else m))
       else assert false
 
   in
@@ -99,5 +102,5 @@ module Solver = struct
       Not_found -> raise (Error (UnboundPropVar i))
     end in f op
 
-  let propagate _ m _ = m
+  let propagate = propagate
 end

@@ -2,3 +2,6 @@
 _build/
 *.byte
 *.native
+*.aux
+*.log
+*.aux
