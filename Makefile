@@ -22,6 +22,9 @@ all: depend $(EXEC)
 
 opt: depend $(EXEC).opt
 
+report: report.tex
+	rubber -d report.tex
+
 $(EXEC): $(OBJS)
 	$(CAMLC) -o $@ $^
 
